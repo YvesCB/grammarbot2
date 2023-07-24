@@ -30,13 +30,15 @@ pub async fn tag(
 /// Embed test
 #[poise::command(slash_command)]
 pub async fn embed(ctx: crate::Context<'_>) -> Result<(), crate::Error> {
-    ctx.guild()
+    let channels: String = ctx
+        .guild()
         .unwrap()
         .channels(ctx.http())
         .await?
         .iter()
-        .for_each(|(key, value)| println!("{}: {}", key, value.name()));
-    ctx.send(|f| f.embed(|f| f.title("The title").description("The description")))
+        .map(|(key, value)| String::from(format!("{}: {}\n", key, value.name())))
+        .collect();
+    ctx.send(|f| f.embed(|f| f.title("The title").description(channels)))
         .await?;
     Ok(())
 }
