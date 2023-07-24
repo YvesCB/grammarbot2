@@ -1,4 +1,4 @@
-// use poise::serenity_prelude as serenity;
+use poise::serenity_prelude::CacheHttp;
 
 async fn autocomplete_tagname<'a>(ctx: crate::Context<'_>, partial: &'a str) -> Vec<String> {
     ctx.data()
@@ -24,5 +24,19 @@ pub async fn tag(
         Some(found_tag) => ctx.say(format!("{}", found_tag.content)).await?,
         None => ctx.say(format!("Tag does not exist!")).await?,
     };
+    Ok(())
+}
+
+/// Embed test
+#[poise::command(slash_command)]
+pub async fn embed(ctx: crate::Context<'_>) -> Result<(), crate::Error> {
+    ctx.guild()
+        .unwrap()
+        .channels(ctx.http())
+        .await?
+        .iter()
+        .for_each(|(key, value)| println!("{}: {}", key, value.name()));
+    ctx.send(|f| f.embed(|f| f.title("The title").description("The description")))
+        .await?;
     Ok(())
 }

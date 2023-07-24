@@ -1,4 +1,4 @@
-use commands_extra::tag;
+use commands_extra::{embed, tag};
 use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -24,7 +24,7 @@ async fn main() {
         serde_json::from_str(&fs::read_to_string("tag_test_data.json").unwrap()).unwrap();
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![tag()],
+            commands: vec![tag(), embed()],
             ..Default::default()
         })
         .token(std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN"))
