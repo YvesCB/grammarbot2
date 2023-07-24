@@ -406,6 +406,8 @@ name = "grammarbot2"
 version = "0.1.0"
 dependencies = [
  "poise",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 

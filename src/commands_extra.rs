@@ -1,13 +1,28 @@
-use poise::serenity_prelude as serenity;
+// use poise::serenity_prelude as serenity;
 
-/// Displays your or another user's account creation date
-#[poise::command(slash_command, prefix_command)]
-pub async fn age(
+async fn autocomplete_tagname<'a>(ctx: crate::Context<'_>, partial: &'a str) -> Vec<String> {
+    ctx.data()
+        .tags
+        .iter()
+        .filter(|t| t.name.contains(partial))
+        .map(|res| res.name.to_owned())
+        .collect()
+}
+
+/// Show a pre-written **Tag** with prepared information.
+///
+/// Specify the name and the tag will be displayed if it exists.
+#[poise::command(slash_command)]
+pub async fn tag(
     ctx: crate::Context<'_>,
-    #[description = "Selected user"] user: Option<serenity::User>,
+    #[description = "Select a tag"]
+    #[autocomplete = "autocomplete_tagname"]
+    tag_name: String,
 ) -> Result<(), crate::Error> {
-    let u = user.as_ref().unwrap_or_else(|| ctx.author());
-    let response = format!("{}'s account was created at {}", u.name, u.created_at());
-    ctx.say(response).await?;
+    let tag = ctx.data().tags.iter().find(|t| t.name == tag_name);
+    match tag {
+        Some(found_tag) => ctx.say(format!("{}", found_tag.content)).await?,
+        None => ctx.say(format!("Tag does not exist!")).await?,
+    };
     Ok(())
 }

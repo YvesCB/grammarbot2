@@ -1,0 +1,12 @@
+{
+	"tags": [
+		{
+			"name": "hello",
+			"content": "This is the hello tag"
+		},
+		{
+			"name": "goodbye",
+			"content": "This is the goodbye tag"
+		}
+	]
+}
