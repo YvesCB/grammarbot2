@@ -1,6 +1,7 @@
+use crate::types::*;
 use poise::serenity_prelude::CacheHttp;
 
-async fn autocomplete_tagname<'a>(ctx: crate::Context<'_>, partial: &'a str) -> Vec<String> {
+async fn autocomplete_tagname<'a>(ctx: Context<'_>, partial: &'a str) -> Vec<String> {
     ctx.data()
         .tags
         .iter()
@@ -9,16 +10,24 @@ async fn autocomplete_tagname<'a>(ctx: crate::Context<'_>, partial: &'a str) -> 
         .collect()
 }
 
-/// Show a pre-written **Tag** with prepared information.
+/// Register and unregister commands
+#[poise::command(slash_command)]
+pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
+    // use this for reference when creating buttons
+    poise::builtins::register_application_commands_buttons(ctx).await?;
+    Ok(())
+}
+
+/// Show a pre-written Tag with prepared information.
 ///
 /// Specify the name and the tag will be displayed if it exists.
 #[poise::command(slash_command)]
 pub async fn tag(
-    ctx: crate::Context<'_>,
+    ctx: Context<'_>,
     #[description = "Select a tag"]
     #[autocomplete = "autocomplete_tagname"]
     tag_name: String,
-) -> Result<(), crate::Error> {
+) -> Result<(), Error> {
     let tag = ctx.data().tags.iter().find(|t| t.name == tag_name);
     match tag {
         Some(found_tag) => ctx.say(format!("{}", found_tag.content)).await?,
@@ -29,7 +38,7 @@ pub async fn tag(
 
 /// Embed test
 #[poise::command(slash_command)]
-pub async fn embed(ctx: crate::Context<'_>) -> Result<(), crate::Error> {
+pub async fn embed(ctx: Context<'_>) -> Result<(), Error> {
     let channels: String = ctx
         .guild()
         .unwrap()

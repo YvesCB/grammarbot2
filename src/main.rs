@@ -1,22 +1,12 @@
-use commands_extra::{embed, tag};
+use commands_util::{embed, register, tag};
+use events::my_event_handler;
 use poise::serenity_prelude as serenity;
-use serde::{Deserialize, Serialize};
 use std::fs;
+use types::*;
 
-#[derive(Serialize, Deserialize)]
-pub struct Tag {
-    name: String,
-    content: String,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Data {
-    tags: Vec<Tag>,
-} // User data, which is stored and accessible in all command invocations
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
-pub type Context<'a> = poise::Context<'a, crate::Data, Error>;
-
-mod commands_extra;
+mod commands_util;
+mod events;
+mod types;
 
 #[tokio::main]
 async fn main() {
@@ -24,7 +14,13 @@ async fn main() {
         serde_json::from_str(&fs::read_to_string("tag_test_data.json").unwrap()).unwrap();
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![tag(), embed()],
+            commands: vec![tag(), embed(), register()],
+            event_handler: |ctx, event, _framework, _data| {
+                Box::pin(async move {
+                    my_event_handler(ctx, event);
+                    Ok(())
+                })
+            },
             ..Default::default()
         })
         .token(std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN"))
