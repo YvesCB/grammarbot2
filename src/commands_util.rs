@@ -1,14 +1,14 @@
 use crate::types::*;
 use poise::serenity_prelude::CacheHttp;
 
-async fn autocomplete_tagname<'a>(ctx: Context<'_>, partial: &'a str) -> Vec<String> {
-    ctx.data()
-        .tags
-        .iter()
-        .filter(|t| t.name.contains(partial))
-        .map(|res| res.name.to_owned())
-        .collect()
-}
+// async fn autocomplete_tagname<'a>(ctx: Context<'_>, partial: &'a str) -> Vec<String> {
+//     ctx.data()
+//         .tags
+//         .iter()
+//         .filter(|t| t.name.contains(partial))
+//         .map(|res| res.name.to_owned())
+//         .collect()
+// }
 
 /// Register and unregister commands
 #[poise::command(slash_command)]
@@ -25,15 +25,10 @@ pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
 pub async fn tag(
     ctx: Context<'_>,
     #[description = "Select a tag"]
-    #[autocomplete = "autocomplete_tagname"]
+    // #[autocomplete = "autocomplete_tagname"]
     tag_name: String,
 ) -> Result<(), Error> {
-    let tag = ctx.data().tags.iter().find(|t| t.name == tag_name);
-    match tag {
-        Some(found_tag) => ctx.say(format!("{}", found_tag.content)).await?,
-        None => ctx.say(format!("Tag does not exist!")).await?,
-    };
-    Ok(())
+    todo!();
 }
 
 /// Embed test
