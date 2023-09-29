@@ -1,99 +1,42 @@
-use commands_util::{embed, register, tag};
+use db_interactions as dbi;
 use events::my_event_handler;
+use log::{error, info, warn};
 use poise::serenity_prelude as serenity;
-use surrealdb::engine::remote::ws::Client as SurrealClient;
-use surrealdb::engine::remote::ws::Ws;
-use surrealdb::opt::auth::Root;
-use surrealdb::sql::Thing;
-use surrealdb::Surreal;
 use types::*;
 
 mod commands_util;
+mod db_interactions;
 mod events;
+mod logging;
 mod types;
-
-static DB: Surreal<SurrealClient> = Surreal::init();
-
-async fn initiate_db() -> surrealdb::Result<()> {
-    DB.connect::<Ws>("localhost:8000").await?;
-    println!("Connected to DB at localhost:8000");
-
-    let dbuser = std::env::var("SURREAL_USER").expect("missing SURREAL_USER");
-    let dbpass = std::env::var("SURREAL_PASS").expect("missing SURREAL_PASS");
-
-    DB.signin(Root {
-        username: &dbuser,
-        password: &dbpass,
-    })
-    .await?;
-    println!("Signed into DB");
-
-    DB.use_ns("discordbot").use_db("grammarbot").await?;
-    println!("Using ns discordbot and db grammarbot");
-
-    Ok(())
-}
-
-#[allow(dead_code)]
-async fn db_test() -> surrealdb::Result<()> {
-    let del_tags: Result<Vec<Tag>, surrealdb::Error> = DB.delete("tag").await;
-    match del_tags {
-        Ok(tags) => println!("Deleted: {:?}", tags),
-        Err(_) => println!("Table empty, nothing deleted."),
-    }
-    let del_users: Result<Vec<MyUser>, surrealdb::Error> = DB.delete("user").await;
-    match del_users {
-        Ok(users) => println!("Deleted: {:?}", users),
-        Err(_) => println!("Table empty, nothing deleted."),
-    }
-
-    let created: Record = DB
-        .create("tag")
-        .content(Tag {
-            name: "hello".to_string(),
-            content: "Content of the hello tag!".to_string(),
-        })
-        .await?;
-    println!("{:?}", created);
-
-    let created: Record = DB
-        .create("tag")
-        .content(Tag {
-            name: "goodbye".to_string(),
-            content: "Content of the goodbye tag!".to_string(),
-        })
-        .await?;
-    println!("{:?}", created);
-
-    let created: Record = DB
-        .create("user")
-        .content(MyUser {
-            name: "yves".to_string(),
-            userid: "123".to_string(),
-        })
-        .await?;
-    println!("{:?}", created);
-
-    //now get all tags
-    let tags: Vec<Tag> = DB.select("tag").await?;
-    println!("{:?}", tags);
-
-    // and the user
-    let users: Vec<MyUser> = DB.select("user").await?;
-    println!("{:?}", users);
-
-    Ok(())
-}
 
 #[tokio::main]
 async fn main() {
     // Initiate the surrealdb connection
-    initiate_db().await.expect("Couldn't initiate DB");
+    dbi::initiate_db().await.expect("couldn't initiate DB");
+
+    // Initiate the logger
+    logging::initialize_logger().expect("couldn't set up logger");
+
+    info!("info test");
+    warn!("warn test");
+    error!("error test");
 
     let data: Data = Data {};
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![embed(), register()],
+            commands: vec![
+                commands_util::help(),
+                commands_util::register(),
+                commands_util::tag(),
+                commands_util::create_tag(),
+                commands_util::remove_tag(),
+                commands_util::embed(),
+            ],
+            prefix_options: poise::PrefixFrameworkOptions {
+                prefix: Some("!r".into()),
+                ..Default::default()
+            },
             event_handler: |ctx, event, _framework, _data| {
                 Box::pin(async move {
                     my_event_handler(ctx, event);

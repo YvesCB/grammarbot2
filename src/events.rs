@@ -10,5 +10,5 @@ pub fn my_event_handler(_ctx: &serenity::Context, event: &Event) {
 }
 
 fn handle_message(msg: &serenity::Message) {
-    println!("Someone posted: {:?}", msg);
+    // println!("Someone posted: {:?}", msg);
 }
