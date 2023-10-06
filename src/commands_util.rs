@@ -60,11 +60,17 @@ pub async fn embed(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Tag parent command
+#[poise::command(slash_command, subcommands("remove_tag", "show_tag"))]
+pub async fn tag(ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
 /// Show a pre-written Tag with prepared information.
 ///
 /// Specify the name and the tag will be displayed if it exists.
-#[poise::command(slash_command, category = "Tags")]
-pub async fn tag(
+#[poise::command(slash_command, category = "Tags", rename = "show")]
+pub async fn show_tag(
     ctx: Context<'_>,
     #[description = "Select a tag"]
     #[autocomplete = "autocomplete_tagname"]
@@ -127,7 +133,8 @@ pub async fn create_tag(ctx: Context<'_>, #[rest] tag: String) -> Result<(), Err
 #[poise::command(
     slash_command,
     required_permissions = "MANAGE_MESSAGES",
-    category = "Tags"
+    category = "Tags",
+    rename = "remove"
 )]
 pub async fn remove_tag(
     ctx: Context<'_>,

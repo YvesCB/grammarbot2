@@ -8,6 +8,8 @@ In its current state, the bot can:
 * react to events such as messages, joins, guild changes, reactions etc.
 * react to slash commands
 * interact with a surrealdb instance in a basic way
+* create tags, show tags and delete tags (which are basically pre-written messages)
+* create embeds
 
 ## Roadmap
 - [X] get basic bot running: Token, responding to a command/message
@@ -16,6 +18,7 @@ In its current state, the bot can:
     - [X] connect to db
     - [X] create db records
     - [X] read db records
+- [X] logging
 - [ ] rewrite commands
 
 ## Requirments
