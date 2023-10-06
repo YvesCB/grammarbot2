@@ -10,9 +10,23 @@ pub struct Tag {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct MyUser {
+pub struct User {
     pub name: String,
-    pub userid: String,
+    pub discordid: String,
+    pub grammarpoints: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UserRole {
+    pub name: String,
+    pub discordid: String,
+    pub emote: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RoleMessage {
+    pub messagetext: String,
+    pub roles: Vec<UserRole>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -27,38 +41,47 @@ pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 #[derive(Debug)]
-pub enum TagError {
+pub enum DBIError {
     DBError(surrealdb::Error),
     TagAlreadyExists,
     TagNotFound,
+    UserNotFound,
+    RoleAlreadyExists,
+    RoleNotFound,
 }
 
-impl fmt::Display for TagError {
+impl fmt::Display for DBIError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.clone() {
-            TagError::DBError(e) => write!(f, "error when accessing the DB: {}", e),
-            TagError::TagAlreadyExists => write!(f, "tag name already exists"),
-            TagError::TagNotFound => write!(f, "tag name not found"),
+            DBIError::DBError(e) => write!(f, "error when accessing the DB: {}", e),
+            DBIError::TagAlreadyExists => write!(f, "tag name already exists"),
+            DBIError::TagNotFound => write!(f, "tag name not found"),
+            DBIError::UserNotFound => write!(f, "user not found"),
+            DBIError::RoleAlreadyExists => write!(f, "role already exists"),
+            DBIError::RoleNotFound => write!(f, "role not found"),
         }
     }
 }
 
-impl error::Error for TagError {
+impl error::Error for DBIError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
-            TagError::TagAlreadyExists => None,
-            TagError::TagNotFound => None,
+            DBIError::TagAlreadyExists => None,
+            DBIError::TagNotFound => None,
+            DBIError::UserNotFound => None,
+            DBIError::RoleAlreadyExists => None,
+            DBIError::RoleNotFound => None,
             // The cause is the underlying implementation error type. Is implicitly
             // cast to the trait object `&error::Error`. This works because the
             // underlying type already implements the `Error` trait.
-            TagError::DBError(ref e) => Some(e),
+            DBIError::DBError(ref e) => Some(e),
         }
     }
 }
 
-impl From<surrealdb::Error> for TagError {
-    fn from(err: surrealdb::Error) -> TagError {
-        TagError::DBError(err)
+impl From<surrealdb::Error> for DBIError {
+    fn from(err: surrealdb::Error) -> DBIError {
+        DBIError::DBError(err)
     }
 }
 

@@ -1,6 +1,8 @@
 use crate::dbi;
 use crate::types::*;
 use poise::serenity_prelude::CacheHttp;
+use poise::serenity_prelude::Channel;
+use poise::serenity_prelude::Role;
 
 async fn autocomplete_tagname<'a>(_ctx: Context<'_>, partial: &'a str) -> Vec<String> {
     let tags = dbi::get_all_tags().await;
@@ -62,7 +64,7 @@ pub async fn embed(ctx: Context<'_>) -> Result<(), Error> {
 
 /// Tag parent command
 #[poise::command(slash_command, subcommands("remove_tag", "show_tag"))]
-pub async fn tag(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn tag(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
@@ -78,8 +80,12 @@ pub async fn show_tag(
 ) -> Result<(), Error> {
     let tag = dbi::get_tag(&tagname).await;
     match tag {
-        Ok(t) => ctx.say(t.content).await?,
-        Err(e) => ctx.say(format!("{:?}", e)).await?,
+        Ok(t) => {
+            ctx.say(&t.content).await?;
+        }
+        Err(e) => {
+            ctx.say(format!("{:?}", e)).await?;
+        }
     };
 
     Ok(())
@@ -90,39 +96,25 @@ pub async fn show_tag(
 /// The name needs to be one word without spaces. Everything after the name will be considered part
 /// of the content
 #[poise::command(prefix_command, category = "Tags")]
-pub async fn create_tag(ctx: Context<'_>, #[rest] tag: String) -> Result<(), Error> {
-    println!("{}", &tag);
-    let mut words = tag.split_whitespace();
-
-    // first word is tagname
-    let tagname = words.next();
-
-    // the remaining words are the content
-    let tagcontent: String = words.collect::<Vec<_>>().join(" ");
-
-    let newtag = match (tagname, tagcontent.len()) {
-        (Some(name), len) if len > 0 => Some(Tag {
-            name: name.to_string(),
-            content: tagcontent,
-        }),
-        _ => None,
+pub async fn create_tag(
+    ctx: Context<'_>,
+    tagname: String,
+    #[rest] tagcontent: String,
+) -> Result<(), Error> {
+    let newtag = Tag {
+        name: tagname,
+        content: tagcontent,
     };
 
-    match newtag {
-        Some(tag) => match dbi::create_tag(&tag).await {
-            Ok(()) => {
-                ctx.say(format!("Tag {} created sucessfully!", &tag.name))
-                    .await?
-            }
-            Err(e) => ctx.say(format!("{}", e)).await?,
-        },
-        None => {
-            ctx.say(
-                "**Error:** After the tag name, you must have at least one character of content!",
-            )
-            .await?
+    match dbi::create_tag(&newtag).await {
+        Ok(()) => {
+            ctx.say(format!("Tag {} created sucessfully!", &newtag.name))
+                .await?;
         }
-    };
+        Err(e) => {
+            ctx.say(format!("{}", e)).await?;
+        }
+    }
 
     Ok(())
 }
@@ -151,4 +143,45 @@ pub async fn remove_tag(
     };
 
     Ok(())
+}
+
+/// Role parent command
+#[poise::command(slash_command, subcommands("list_roles", "add_role", "remove_role"))]
+pub async fn role(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[poise::command(slash_command, category = "Roles", rename = "list")]
+pub async fn list_roles(ctx: Context<'_>) -> Result<(), Error> {
+    let roles = dbi::get_all_roles().await?;
+
+    ctx.send(|f| f.embed(|f| f.title("Roles available to assign").description("TODO")));
+
+    todo!()
+}
+
+#[poise::command(
+    slash_command,
+    required_permissions = "MANAGE_ROLES",
+    category = "Roles",
+    rename = "add"
+)]
+pub async fn add_role(
+    ctx: Context<'_>,
+    #[description = "Chose a role"] role: Role,
+) -> Result<(), Error> {
+    todo!()
+}
+
+#[poise::command(
+    slash_command,
+    required_permissions = "MANAGE_ROLES",
+    category = "Roles",
+    rename = "remove"
+)]
+pub async fn remove_role(
+    ctx: Context<'_>,
+    #[description = "Chose a role"] role: Role,
+) -> Result<(), Error> {
+    todo!()
 }
