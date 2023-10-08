@@ -1,3 +1,5 @@
+use poise::serenity_prelude::Emoji;
+use poise::serenity_prelude::Role;
 use serde::{Deserialize, Serialize};
 use std::error;
 use std::fmt;
@@ -18,9 +20,9 @@ pub struct User {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserRole {
-    pub name: String,
-    pub discordid: String,
-    pub emote: String,
+    pub guild_role: Role,
+    pub emote: Emoji,
+    pub desc: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

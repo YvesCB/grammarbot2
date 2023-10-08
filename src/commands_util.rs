@@ -1,11 +1,11 @@
 use crate::dbi;
 use crate::types::*;
 use poise::serenity_prelude::CacheHttp;
-use poise::serenity_prelude::Channel;
+use poise::serenity_prelude::Emoji;
 use poise::serenity_prelude::Role;
 
-async fn autocomplete_tagname<'a>(_ctx: Context<'_>, partial: &'a str) -> Vec<String> {
-    let tags = dbi::get_all_tags().await;
+async fn autocomplete_tagname<'a>(ctx: Context<'_>, partial: &'a str) -> Vec<String> {
+    let tags = dbi::get_all_tags(ctx.guild_id()).await;
     match tags {
         Ok(t) => t
             .iter()
@@ -71,14 +71,14 @@ pub async fn tag(_ctx: Context<'_>) -> Result<(), Error> {
 /// Show a pre-written Tag with prepared information.
 ///
 /// Specify the name and the tag will be displayed if it exists.
-#[poise::command(slash_command, category = "Tags", rename = "show")]
+#[poise::command(slash_command, category = "Tags", rename = "show", guild_only)]
 pub async fn show_tag(
     ctx: Context<'_>,
     #[description = "Select a tag"]
     #[autocomplete = "autocomplete_tagname"]
     tagname: String,
 ) -> Result<(), Error> {
-    let tag = dbi::get_tag(&tagname).await;
+    let tag = dbi::get_tag(&tagname, ctx.guild_id()).await;
     match tag {
         Ok(t) => {
             ctx.say(&t.content).await?;
@@ -95,7 +95,7 @@ pub async fn show_tag(
 ///
 /// The name needs to be one word without spaces. Everything after the name will be considered part
 /// of the content
-#[poise::command(prefix_command, category = "Tags")]
+#[poise::command(prefix_command, category = "Tags", guild_only)]
 pub async fn create_tag(
     ctx: Context<'_>,
     tagname: String,
@@ -106,9 +106,9 @@ pub async fn create_tag(
         content: tagcontent,
     };
 
-    match dbi::create_tag(&newtag).await {
-        Ok(()) => {
-            ctx.say(format!("Tag {} created sucessfully!", &newtag.name))
+    match dbi::create_tag(newtag, ctx.guild_id()).await {
+        Ok(t) => {
+            ctx.say(format!("Tag {} created sucessfully!", &t.name))
                 .await?;
         }
         Err(e) => {
@@ -126,7 +126,8 @@ pub async fn create_tag(
     slash_command,
     required_permissions = "MANAGE_MESSAGES",
     category = "Tags",
-    rename = "remove"
+    rename = "remove",
+    guild_only
 )]
 pub async fn remove_tag(
     ctx: Context<'_>,
@@ -134,7 +135,7 @@ pub async fn remove_tag(
     #[autocomplete = "autocomplete_tagname"]
     tagname: String,
 ) -> Result<(), Error> {
-    match dbi::remove_tag(&tagname).await {
+    match dbi::remove_tag(&tagname, ctx.guild_id()).await {
         Ok(t) => {
             ctx.say(format!("Tag {} removed sucessfully!", t.name))
                 .await?
@@ -151,26 +152,55 @@ pub async fn role(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(slash_command, category = "Roles", rename = "list")]
+#[poise::command(slash_command, category = "Roles", rename = "list", guild_only)]
 pub async fn list_roles(ctx: Context<'_>) -> Result<(), Error> {
     let roles = dbi::get_all_roles().await?;
+    let roles_string: String = roles
+        .iter()
+        .map(|r| String::from(format!("{}\n", r.guild_role)))
+        .collect();
 
-    ctx.send(|f| f.embed(|f| f.title("Roles available to assign").description("TODO")));
+    ctx.send(|f| {
+        f.embed(|f| {
+            f.title("Roles available to assign")
+                .description(roles_string)
+        })
+    })
+    .await?;
 
-    todo!()
+    Ok(())
 }
 
 #[poise::command(
     slash_command,
     required_permissions = "MANAGE_ROLES",
     category = "Roles",
-    rename = "add"
+    rename = "add",
+    guild_only
 )]
 pub async fn add_role(
     ctx: Context<'_>,
     #[description = "Chose a role"] role: Role,
+    #[description = "Chose an emote"] emote: Emoji,
+    #[description = "Role description"] desc: String,
 ) -> Result<(), Error> {
-    todo!()
+    let ur = UserRole {
+        guild_role: role,
+        emote,
+        desc,
+    };
+
+    match dbi::add_role(ur, ctx.guild_id()).await {
+        Ok(ur) => {
+            ctx.say(format!("Role {} added sucessfully!", &ur.guild_role))
+                .await?;
+        }
+        Err(e) => {
+            ctx.say(format!("{}", e)).await?;
+        }
+    };
+
+    Ok(())
 }
 
 #[poise::command(
@@ -183,5 +213,5 @@ pub async fn remove_role(
     ctx: Context<'_>,
     #[description = "Chose a role"] role: Role,
 ) -> Result<(), Error> {
-    todo!()
+    Ok(())
 }

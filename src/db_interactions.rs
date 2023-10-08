@@ -1,12 +1,14 @@
 use log::{error, warn};
-use surrealdb::engine::remote::ws::Client as SurrealClient;
+use once_cell::sync::Lazy;
+use poise::serenity_prelude::GuildId;
+use surrealdb::engine::remote::ws::Client;
 use surrealdb::engine::remote::ws::Ws;
 use surrealdb::opt::auth::Root;
 use surrealdb::Surreal;
 
 use crate::types::*;
 
-pub static DB: Surreal<SurrealClient> = Surreal::init();
+pub static DB: Lazy<Surreal<Client>> = Lazy::new(Surreal::init);
 
 /// Set up the connection to the surreal db server
 pub async fn initiate_db() -> surrealdb::Result<()> {
@@ -23,100 +25,77 @@ pub async fn initiate_db() -> surrealdb::Result<()> {
     .await?;
     warn!("Signed into DB");
 
-    DB.use_ns("discordbot").use_db("grammarbot").await?;
+    DB.use_ns("discordbot").use_db("global").await?;
     warn!("Using ns discordbot and db grammarbot");
 
     Ok(())
 }
 
-/// Some code for testing db interactions
-#[allow(dead_code)]
-pub async fn db_test() -> surrealdb::Result<()> {
-    let del_tags: Result<Vec<Tag>, surrealdb::Error> = DB.delete("tag").await;
-    match del_tags {
-        Ok(tags) => println!("Deleted: {:?}", tags),
-        Err(_) => println!("Table empty, nothing deleted."),
-    }
+/// Create a tag in the database with the id equal to the tag name
+pub async fn create_tag(tag: Tag, guildid: Option<GuildId>) -> Result<Tag, DBIError> {
+    let dbname = match guildid {
+        Some(id) => id.0.to_string(),
+        None => "global".to_string(),
+    };
+    DB.use_ns("discordbot").use_db(&dbname).await?;
 
-    let created: Record = DB
-        .create("tag")
-        .content(Tag {
-            name: "hello".to_string(),
-            content: "Content of the hello tag!".to_string(),
-        })
-        .await?;
-    println!("{:?}", created);
+    let created_tag: Option<Tag> = DB.create(("tag", &tag.name)).content(tag).await?;
 
-    let created: Record = DB
-        .create("tag")
-        .content(Tag {
-            name: "goodbye".to_string(),
-            content: "Content of the goodbye tag!".to_string(),
-        })
-        .await?;
-    println!("{:?}", created);
-
-    //now get all tags
-    let tags: Vec<Tag> = DB.select("tag").await?;
-    println!("{:?}", tags);
-
-    let query = "DELETE from tag WHERE name == $tagname";
-    let response = DB.query(query).bind(("tagname", "goodbye")).await?;
-    println!("{:?}", response);
-
-    let tags: Vec<Tag> = DB.select("tag").await?;
-    println!("{:?}", tags);
-
-    Ok(())
-}
-
-/// Create a tag entry in the tag table by passing its name and content
-pub async fn create_tag(tag: &Tag) -> Result<(), DBIError> {
-    let existing_tags: Vec<Tag> = DB.select("tag").await?;
-
-    match existing_tags.iter().find(|t| t.name == tag.name) {
-        Some(_) => return Err(DBIError::TagAlreadyExists),
-        None => {
-            let created: Record = DB.create("tag").content(tag).await?;
-            warn!("{:?}", created);
-
-            Ok(())
+    match created_tag {
+        Some(t) => {
+            warn!("In: {} created Tag: {:?}", &dbname, &t);
+            Ok(t)
         }
+        None => return Err(DBIError::TagAlreadyExists),
     }
 }
 
 /// Get a tag by its name. Returns an `TagError::TagNotFound` if the tag doens't exist
-pub async fn get_tag(tagname: &str) -> Result<Tag, DBIError> {
-    let query = "SELECT * FROM tag WHERE name == $tagname";
-    let mut response = DB.query(query).bind(("tagname", tagname)).await?;
-    let tags: Vec<Tag> = response.take(0)?;
+pub async fn get_tag(tagname: &str, guildid: Option<GuildId>) -> Result<Tag, DBIError> {
+    let dbname = match guildid {
+        Some(id) => id.0.to_string(),
+        None => "global".to_string(),
+    };
+    DB.use_ns("discordbot").use_db(&dbname).await?;
+
+    let tag: Option<Tag> = DB.select(("tag", tagname)).await?;
 
     // Note here that creation of tags prevents a name to be used multiple times.
     // Thus the resulting vector is either of length 0 or 1
-    match tags.len() {
-        0 => Err(DBIError::TagNotFound),
-        _ => Ok(tags.first().unwrap().to_owned()),
+    match tag {
+        Some(t) => Ok(t),
+        None => Err(DBIError::TagNotFound),
     }
 }
 
 /// Returns a vector of all the tags in the DB. Can be of length 0
-pub async fn get_all_tags() -> Result<Vec<Tag>, DBIError> {
+pub async fn get_all_tags(guildid: Option<GuildId>) -> Result<Vec<Tag>, DBIError> {
+    let dbname = match guildid {
+        Some(id) => id.0.to_string(),
+        None => "global".to_string(),
+    };
+    DB.use_ns("discordbot").use_db(&dbname).await?;
+
     let tags: Vec<Tag> = DB.select("tag").await?;
 
     Ok(tags)
 }
 
 /// Removes a tag by its name. Returns `TagError::TagNotFound` if tag can't be found
-pub async fn remove_tag(tagname: &str) -> Result<Tag, DBIError> {
-    let mut response = DB
-        .query("SELECT * FROM tag WHERE name == $tagname")
-        .query("DELETE FROM tag WHERE name == $tagname")
-        .bind(("tagname", tagname))
-        .await?;
-    let tags: Vec<Tag> = response.take(0)?;
-    match tags.len() {
-        0 => Err(DBIError::TagNotFound),
-        _ => Ok(tags.first().unwrap().to_owned()),
+pub async fn remove_tag(tagname: &str, guildid: Option<GuildId>) -> Result<Tag, DBIError> {
+    let dbname = match guildid {
+        Some(id) => id.0.to_string(),
+        None => "global".to_string(),
+    };
+    DB.use_ns("discordbot").use_db(&dbname).await?;
+
+    let tag: Option<Tag> = DB.delete(("tag", tagname)).await?;
+    match tag {
+        Some(t) => {
+            warn!("In: {} removed Tag: {:?}", &dbname, &t);
+            Ok(t)
+        }
+        None => Err(DBIError::TagNotFound),
     }
 }
 
@@ -129,36 +108,42 @@ pub async fn get_all_roles() -> Result<Vec<UserRole>, DBIError> {
 
 /// Add a role to the saved user-assignable roles. Returns `DBIError::RoleAlreadyExists` if the
 /// role was already added previously
-pub async fn add_role(role: UserRole) -> Result<(), DBIError> {
-    let existing_roles: Vec<UserRole> = DB.select("role").await?;
+pub async fn add_role(role: UserRole, guildid: Option<GuildId>) -> Result<UserRole, DBIError> {
+    let dbname = match guildid {
+        Some(id) => id.0.to_string(),
+        None => "global".to_string(),
+    };
+    DB.use_ns("discordbot").use_db(&dbname).await?;
 
-    match existing_roles
-        .iter()
-        .find(|r| r.discordid == role.discordid)
-    {
-        Some(_) => return Err(DBIError::RoleAlreadyExists),
-        None => {
-            let created: Record = DB.create("role").content(role).await?;
-            warn!("{:?}", created);
-
-            Ok(())
+    let created: Option<UserRole> = DB
+        .create(("role", role.guild_role.id.to_string()))
+        .content(role)
+        .await?;
+    match created {
+        Some(ur) => {
+            warn!("In: {} added UserRole: {:?}", &dbname, &ur);
+            Ok(ur)
         }
+        None => Err(DBIError::RoleAlreadyExists),
     }
 }
 
 /// Remove a role from the user-assignable roles. Returns `DBIError::RoleNotFound` if the role is
 /// not in the database
-pub async fn remove_role(role: UserRole) -> Result<UserRole, DBIError> {
-    // We will add the error handling but in reality, this function will only be called with a role
-    // that should exist.
-    let mut response = DB
-        .query("SELECT * FROM role WHERE discordid == $id")
-        .query("DELETE FROM tag WHERE discordid == $id")
-        .bind(("discordid", role.discordid))
-        .await?;
-    let roles: Vec<UserRole> = response.take(0)?;
-    match roles.len() {
-        0 => Err(DBIError::RoleNotFound),
-        _ => Ok(roles.first().unwrap().to_owned()),
+pub async fn remove_role(role: UserRole, guildid: Option<GuildId>) -> Result<UserRole, DBIError> {
+    let dbname = match guildid {
+        Some(id) => id.0.to_string(),
+        None => "global".to_string(),
+    };
+    DB.use_ns("discordbot").use_db(&dbname).await?;
+
+    let removed_role: Option<UserRole> =
+        DB.delete(("role", role.guild_role.id.to_string())).await?;
+    match removed_role {
+        Some(ur) => {
+            warn!("In: {} removed UserRole: {:?}", &dbname, &ur);
+            Ok(ur)
+        }
+        None => Err(DBIError::RoleNotFound),
     }
 }

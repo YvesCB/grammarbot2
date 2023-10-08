@@ -1,6 +1,5 @@
 use db_interactions as dbi;
 use events::my_event_handler;
-use log::{error, warn};
 use log4rs;
 use poise::serenity_prelude as serenity;
 use types::*;
@@ -13,9 +12,9 @@ mod types;
 #[tokio::main]
 async fn main() {
     // Initiate the surrealdb connection
-    dbi::initiate_db().await.expect("couldn't initiate DB");
-
     log4rs::init_file("logging_config.yaml", Default::default()).unwrap();
+
+    dbi::initiate_db().await.expect("couldn't initiate DB");
 
     let data: Data = Data {};
     let framework = poise::Framework::builder()
@@ -24,6 +23,7 @@ async fn main() {
                 commands_util::help(),
                 commands_util::register(),
                 commands_util::tag(),
+                commands_util::role(),
                 commands_util::create_tag(),
                 commands_util::embed(),
             ],
