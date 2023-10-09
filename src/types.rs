@@ -28,7 +28,8 @@ pub struct UserRole {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RoleMessage {
     pub messagetext: String,
-    pub roles: Vec<UserRole>,
+    pub message_id: Option<u64>,
+    pub active: bool,
 }
 
 #[derive(Debug, Deserialize)]

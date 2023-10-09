@@ -5,6 +5,7 @@ use poise::serenity_prelude as serenity;
 use types::*;
 
 mod commands_util;
+mod constants;
 mod db_interactions;
 mod events;
 mod types;

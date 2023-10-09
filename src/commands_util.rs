@@ -1,8 +1,6 @@
 use crate::dbi;
 use crate::types::*;
-use poise::serenity_prelude::CacheHttp;
-use poise::serenity_prelude::Emoji;
-use poise::serenity_prelude::Role;
+use poise::serenity_prelude::{CacheHttp, Emoji, Role};
 
 async fn autocomplete_tagname<'a>(ctx: Context<'_>, partial: &'a str) -> Vec<String> {
     let tags = dbi::get_all_tags(ctx.guild_id()).await;
@@ -147,17 +145,30 @@ pub async fn remove_tag(
 }
 
 /// Role parent command
-#[poise::command(slash_command, subcommands("list_roles", "add_role", "remove_role"))]
+#[poise::command(
+    slash_command,
+    subcommands(
+        "list_roles",
+        "add_role",
+        "remove_role",
+        "show_msg_role",
+        "set_msg_role"
+    )
+)]
 pub async fn role(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Lists all user assignable roles
+///
+/// This command will post the list of all the roles that users can assign to themselves along with
+/// their description.
 #[poise::command(slash_command, category = "Roles", rename = "list", guild_only)]
 pub async fn list_roles(ctx: Context<'_>) -> Result<(), Error> {
-    let roles = dbi::get_all_roles().await?;
+    let roles = dbi::get_all_roles(ctx.guild_id()).await?;
     let roles_string: String = roles
         .iter()
-        .map(|r| String::from(format!("{}\n", r.guild_role)))
+        .map(|r| String::from(format!("{} {}: {}\n", r.emote, r.guild_role, r.desc)))
         .collect();
 
     ctx.send(|f| {
@@ -171,6 +182,11 @@ pub async fn list_roles(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Adds a role as user assignable
+///
+/// With this command you can add a role to the list of roles that users can assign to themselves.
+/// Additionally an emote is associated with the role, as well as a description which explains what
+/// the function of the role is.
 #[poise::command(
     slash_command,
     required_permissions = "MANAGE_ROLES",
@@ -203,6 +219,10 @@ pub async fn add_role(
     Ok(())
 }
 
+/// Removes a role from the user assignable roles
+///
+/// This command can be used to remove a role from the list of user assignable roles, so that it
+/// can no longer be assigne by the users.
 #[poise::command(
     slash_command,
     required_permissions = "MANAGE_ROLES",
@@ -213,5 +233,87 @@ pub async fn remove_role(
     ctx: Context<'_>,
     #[description = "Chose a role"] role: Role,
 ) -> Result<(), Error> {
+    let user_role = dbi::get_role(role.id.to_string(), ctx.guild_id()).await?;
+
+    match dbi::remove_role(user_role, ctx.guild_id()).await {
+        Ok(ur) => {
+            ctx.say(format!(
+                "Role {} successfully removed from list.",
+                ur.guild_role
+            ))
+            .await?;
+        }
+        Err(e) => {
+            ctx.say(format!("{}", e)).await?;
+        }
+    };
+
+    Ok(())
+}
+
+/// Sets the text for the role selection message
+///
+/// With this command the text shown in the role selection message can be set. This text will then
+/// show up on the message which lets the users select their roles.
+#[poise::command(
+    slash_command,
+    required_permissions = "MANAGE_ROLES",
+    category = "Roles",
+    rename = "message_set"
+)]
+pub async fn set_msg_role(
+    ctx: Context<'_>,
+    #[description = "Set the desired message text"] msg: String,
+) -> Result<(), Error> {
+    match dbi::set_role_message(msg, ctx.guild_id()).await {
+        Ok(_) => {
+            ctx.say(format!("Role message set successfully.")).await?;
+        }
+        Err(e) => {
+            ctx.say(format!("{}", e)).await?;
+        }
+    };
+
+    Ok(())
+}
+
+/// Shows the currently set role message
+///
+/// With this commmand you can print the currently set up role message.
+#[poise::command(
+    slash_command,
+    required_permissions = "MANAGE_ROLES",
+    category = "Roles",
+    rename = "message_show"
+)]
+pub async fn show_msg_role(ctx: Context<'_>) -> Result<(), Error> {
+    match dbi::get_role_message(ctx.guild_id()).await? {
+        Some(msg) => {
+            ctx.send(|f| {
+                f.embed(|f| {
+                    f.title("Current role message")
+                        .description(&msg.messagetext)
+                        .field(
+                            "Message ID",
+                            format!(
+                                "{:?}",
+                                match msg.message_id {
+                                    Some(id) => id.to_string(),
+                                    None => "None".to_string(),
+                                }
+                            ),
+                            true,
+                        )
+                        .field("Is active", msg.active, true)
+                })
+            })
+            .await?;
+        }
+        None => {
+            ctx.say(format!("No role message set on this server"))
+                .await?;
+        }
+    };
+
     Ok(())
 }
