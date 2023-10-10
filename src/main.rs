@@ -29,6 +29,7 @@ async fn main() {
                 commands_util::tag(),
                 commands_util::create_tag(),
                 commands_util::role(),
+                commands_util::members(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some(constants::BOT_PREFIX.into()),
@@ -43,11 +44,7 @@ async fn main() {
             ..Default::default()
         })
         .token(std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN"))
-        .intents(
-            GatewayIntents::non_privileged()
-                | GatewayIntents::MESSAGE_CONTENT
-                | GatewayIntents::GUILD_MEMBERS,
-        )
+        .intents(GatewayIntents::non_privileged() | GatewayIntents::privileged())
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
