@@ -358,23 +358,3 @@ pub async fn post_msg_role(
 
     Ok(())
 }
-
-/// Show members
-///
-/// This command lists the members. This is mostly to test functionality
-#[poise::command(slash_command, guild_only)]
-pub async fn members(ctx: Context<'_>) -> Result<(), Error> {
-    if let Some(guild) = ctx.guild() {
-        let member_string: String = guild
-            .members
-            .iter()
-            .map(|(user_id, member)| {
-                String::from(format!("{}: {}", user_id, member.display_name()))
-            })
-            .collect();
-        dbg!(guild.members);
-        ctx.say(member_string).await?;
-    }
-
-    Ok(())
-}
