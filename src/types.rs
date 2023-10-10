@@ -1,4 +1,5 @@
 use poise::serenity_prelude::Emoji;
+use poise::serenity_prelude::Message;
 use poise::serenity_prelude::Role;
 use serde::{Deserialize, Serialize};
 use std::error;
@@ -28,7 +29,7 @@ pub struct UserRole {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RoleMessage {
     pub messagetext: String,
-    pub message_id: Option<u64>,
+    pub guild_message: Option<Message>,
     pub active: bool,
 }
 
@@ -55,7 +56,7 @@ pub enum DBIError {
 
 impl fmt::Display for DBIError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.clone() {
+        match self {
             DBIError::DBError(e) => write!(f, "error when accessing the DB: {}", e),
             DBIError::TagAlreadyExists => write!(f, "tag name already exists"),
             DBIError::TagNotFound => write!(f, "tag name not found"),

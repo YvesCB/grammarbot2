@@ -1,5 +1,6 @@
 use crate::dbi;
 use crate::types::*;
+use poise::serenity_prelude::Channel;
 use poise::serenity_prelude::{CacheHttp, Emoji, Role};
 
 async fn autocomplete_tagname<'a>(ctx: Context<'_>, partial: &'a str) -> Vec<String> {
@@ -41,22 +42,6 @@ You can edit your message to the bot and the bot will edit its response.",
         ..Default::default()
     };
     poise::builtins::help(ctx, command.as_deref(), config).await?;
-    Ok(())
-}
-
-/// Embed test
-#[poise::command(slash_command, category = "Various")]
-pub async fn embed(ctx: Context<'_>) -> Result<(), Error> {
-    let channels: String = ctx
-        .guild()
-        .unwrap()
-        .channels(ctx.http())
-        .await?
-        .iter()
-        .map(|(key, value)| String::from(format!("{}: {}\n", key, value.name())))
-        .collect();
-    ctx.send(|f| f.embed(|f| f.title("The title").description(channels)))
-        .await?;
     Ok(())
 }
 
@@ -152,7 +137,8 @@ pub async fn remove_tag(
         "add_role",
         "remove_role",
         "show_msg_role",
-        "set_msg_role"
+        "set_msg_role",
+        "post_msg_role",
     )
 )]
 pub async fn role(_ctx: Context<'_>) -> Result<(), Error> {
@@ -227,7 +213,8 @@ pub async fn add_role(
     slash_command,
     required_permissions = "MANAGE_ROLES",
     category = "Roles",
-    rename = "remove"
+    rename = "remove",
+    guild_only
 )]
 pub async fn remove_role(
     ctx: Context<'_>,
@@ -259,7 +246,8 @@ pub async fn remove_role(
     slash_command,
     required_permissions = "MANAGE_ROLES",
     category = "Roles",
-    rename = "message_set"
+    rename = "message_set",
+    guild_only
 )]
 pub async fn set_msg_role(
     ctx: Context<'_>,
@@ -284,7 +272,8 @@ pub async fn set_msg_role(
     slash_command,
     required_permissions = "MANAGE_ROLES",
     category = "Roles",
-    rename = "message_show"
+    rename = "message_show",
+    guild_only
 )]
 pub async fn show_msg_role(ctx: Context<'_>) -> Result<(), Error> {
     match dbi::get_role_message(ctx.guild_id()).await? {
@@ -294,11 +283,11 @@ pub async fn show_msg_role(ctx: Context<'_>) -> Result<(), Error> {
                     f.title("Current role message")
                         .description(&msg.messagetext)
                         .field(
-                            "Message ID",
+                            "Message link",
                             format!(
                                 "{:?}",
-                                match msg.message_id {
-                                    Some(id) => id.to_string(),
+                                match msg.guild_message {
+                                    Some(msg) => msg.link(),
                                     None => "None".to_string(),
                                 }
                             ),
@@ -312,6 +301,58 @@ pub async fn show_msg_role(ctx: Context<'_>) -> Result<(), Error> {
         None => {
             ctx.say(format!("No role message set on this server"))
                 .await?;
+        }
+    };
+
+    Ok(())
+}
+
+/// Post the role message in the specified chat
+///
+/// This command will attempt to post the full role message in the specified channel. It will
+/// contain the role message and all the roles with their correspoding emotes. The reactions will
+/// be aded automatically and from that point on, the reaction roles will be active.
+#[poise::command(
+    slash_command,
+    required_permissions = "MANAGE_ROLES",
+    category = "Roles",
+    rename = "post",
+    guild_only
+)]
+pub async fn post_msg_role(
+    ctx: Context<'_>,
+    #[description = "Chose channel"] channel: Channel,
+) -> Result<(), Error> {
+    // First we get the components we need to build the message for the current server
+    let cur_message = dbi::get_role_message(ctx.guild_id()).await?;
+    let cur_roles = dbi::get_all_roles(ctx.guild_id()).await?;
+
+    match (cur_message, &cur_roles) {
+        (Some(msg), roles) if roles.len() > 0 => {
+            // At this point we know we have a message and a list of roles that has a least one
+            // role
+            let role_list: String = roles
+                .iter()
+                .map(|r| String::from(format!("{} {}: {}\n", r.emote, r.guild_role, r.desc)))
+                .collect();
+            let message: String = String::from(format!(
+                "# Reaction roles\n\
+{}\n\
+## Available roles\n\
+{}",
+                msg.messagetext, role_list
+            ));
+
+            let sent_message = channel.id().say(ctx.http(), message).await?;
+            for role in cur_roles.iter() {
+                sent_message.react(ctx, role.emote.to_owned()).await?;
+            }
+            dbi::activate_role_message(&msg, sent_message, ctx.guild_id()).await?;
+
+            ctx.say("Message posted sucessfully.").await?;
+        }
+        _ => {
+            ctx.say("Make sure that a role message is set and that at least one role was selected as a user assignable role.").await?;
         }
     };
 

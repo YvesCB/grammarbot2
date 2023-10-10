@@ -1,6 +1,6 @@
 use log::{error, warn};
 use once_cell::sync::Lazy;
-use poise::serenity_prelude::GuildId;
+use poise::serenity_prelude::{GuildId, Message};
 use surrealdb::engine::remote::ws::{Client, Ws};
 use surrealdb::opt::auth::Root;
 use surrealdb::Surreal;
@@ -33,7 +33,7 @@ pub async fn initiate_db() -> surrealdb::Result<()> {
     Ok(())
 }
 
-async fn setdb(guildid: Option<GuildId>) -> Result<(), DBIError> {
+async fn setdb(guildid: &Option<GuildId>) -> Result<(), DBIError> {
     let dbname = match guildid {
         Some(id) => id.0.to_string(),
         None => "global".to_string(),
@@ -45,7 +45,7 @@ async fn setdb(guildid: Option<GuildId>) -> Result<(), DBIError> {
 
 /// Create a tag in the database with the id equal to the tag name
 pub async fn create_tag(tag: Tag, guildid: Option<GuildId>) -> Result<Tag, DBIError> {
-    setdb(guildid).await?;
+    setdb(&guildid).await?;
 
     let created_tag: Option<Tag> = DB
         .create((constants::DB_TAGS, &tag.name))
@@ -63,7 +63,7 @@ pub async fn create_tag(tag: Tag, guildid: Option<GuildId>) -> Result<Tag, DBIEr
 
 /// Get a tag by its name. Returns an `TagError::TagNotFound` if the tag doens't exist
 pub async fn get_tag(tagname: &str, guildid: Option<GuildId>) -> Result<Tag, DBIError> {
-    setdb(guildid).await?;
+    setdb(&guildid).await?;
 
     let tag: Option<Tag> = DB.select((constants::DB_TAGS, tagname)).await?;
 
@@ -77,7 +77,7 @@ pub async fn get_tag(tagname: &str, guildid: Option<GuildId>) -> Result<Tag, DBI
 
 /// Returns a vector of all the tags in the DB. Can be of length 0
 pub async fn get_all_tags(guildid: Option<GuildId>) -> Result<Vec<Tag>, DBIError> {
-    setdb(guildid).await?;
+    setdb(&guildid).await?;
 
     let tags: Vec<Tag> = DB.select(constants::DB_TAGS).await?;
 
@@ -86,7 +86,7 @@ pub async fn get_all_tags(guildid: Option<GuildId>) -> Result<Vec<Tag>, DBIError
 
 /// Removes a tag by its name. Returns `TagError::TagNotFound` if tag can't be found
 pub async fn remove_tag(tagname: &str, guildid: Option<GuildId>) -> Result<Tag, DBIError> {
-    setdb(guildid).await?;
+    setdb(&guildid).await?;
 
     let tag: Option<Tag> = DB.delete((constants::DB_TAGS, tagname)).await?;
     match tag {
@@ -100,7 +100,7 @@ pub async fn remove_tag(tagname: &str, guildid: Option<GuildId>) -> Result<Tag, 
 
 /// Get a vector of all the roles that users can asign to themselves. Can be of length 0.
 pub async fn get_all_roles(guildid: Option<GuildId>) -> Result<Vec<UserRole>, DBIError> {
-    setdb(guildid).await?;
+    setdb(&guildid).await?;
 
     let roles: Vec<UserRole> = DB.select(constants::DB_ROLES).await?;
 
@@ -110,7 +110,7 @@ pub async fn get_all_roles(guildid: Option<GuildId>) -> Result<Vec<UserRole>, DB
 /// Add a role to the saved user-assignable roles. Returns `DBIError::RoleAlreadyExists` if the
 /// role was already added previously
 pub async fn add_role(role: UserRole, guildid: Option<GuildId>) -> Result<UserRole, DBIError> {
-    setdb(guildid).await?;
+    setdb(&guildid).await?;
 
     let created: Option<UserRole> = DB
         .create((constants::DB_ROLES, role.guild_role.id.to_string()))
@@ -127,7 +127,7 @@ pub async fn add_role(role: UserRole, guildid: Option<GuildId>) -> Result<UserRo
 
 /// Get a role by its ID
 pub async fn get_role(role_id: String, guildid: Option<GuildId>) -> Result<UserRole, DBIError> {
-    setdb(guildid).await?;
+    setdb(&guildid).await?;
 
     let user_role: Option<UserRole> = DB.select((constants::DB_ROLES, role_id)).await?;
 
@@ -140,7 +140,7 @@ pub async fn get_role(role_id: String, guildid: Option<GuildId>) -> Result<UserR
 /// Remove a role from the user-assignable roles. Returns `DBIError::RoleNotFound` if the role is
 /// not in the database
 pub async fn remove_role(role: UserRole, guildid: Option<GuildId>) -> Result<UserRole, DBIError> {
-    setdb(guildid).await?;
+    setdb(&guildid).await?;
 
     let removed_role: Option<UserRole> = DB
         .delete((constants::DB_ROLES, role.guild_role.id.to_string()))
@@ -156,7 +156,7 @@ pub async fn remove_role(role: UserRole, guildid: Option<GuildId>) -> Result<Use
 
 /// Returns the currently set role message. Returns None if no message is set
 pub async fn get_role_message(guildid: Option<GuildId>) -> Result<Option<RoleMessage>, DBIError> {
-    setdb(guildid).await?;
+    setdb(&guildid).await?;
 
     let cur_message: Option<RoleMessage> = DB.select((constants::DB_ROLEMSG, "0")).await?;
     Ok(cur_message)
@@ -164,7 +164,7 @@ pub async fn get_role_message(guildid: Option<GuildId>) -> Result<Option<RoleMes
 
 /// Sets the current role message for the server. If one already exists, it is overwritten
 pub async fn set_role_message(msg: String, guildid: Option<GuildId>) -> Result<(), DBIError> {
-    setdb(guildid).await?;
+    setdb(&guildid).await?;
 
     let cur_message: Option<RoleMessage> = DB.select((constants::DB_ROLEMSG, "0")).await?;
     match cur_message {
@@ -173,7 +173,7 @@ pub async fn set_role_message(msg: String, guildid: Option<GuildId>) -> Result<(
                 .update((constants::DB_ROLEMSG, "0"))
                 .content(RoleMessage {
                     messagetext: msg.to_owned(),
-                    message_id: cur_msg.message_id.to_owned(),
+                    guild_message: cur_msg.guild_message.to_owned(),
                     active: cur_msg.active.to_owned(),
                 })
                 .await?;
@@ -189,7 +189,7 @@ pub async fn set_role_message(msg: String, guildid: Option<GuildId>) -> Result<(
                 .create((constants::DB_ROLEMSG, "0"))
                 .content(RoleMessage {
                     messagetext: msg.to_owned(),
-                    message_id: None,
+                    guild_message: None,
                     active: false,
                 })
                 .await?;
@@ -200,6 +200,29 @@ pub async fn set_role_message(msg: String, guildid: Option<GuildId>) -> Result<(
             );
         }
     };
+
+    Ok(())
+}
+
+/// Activate the role message by setting the id of the posted message and setting the active bool
+/// to true
+///
+/// This function may only be called when a role message has been previously set!
+pub async fn activate_role_message(
+    role_message: &RoleMessage,
+    guild_message: Message,
+    guildid: Option<GuildId>,
+) -> Result<(), DBIError> {
+    setdb(&guildid).await?;
+
+    let _newmessage: Option<RoleMessage> = DB
+        .update((constants::DB_ROLEMSG, "0"))
+        .content(RoleMessage {
+            messagetext: role_message.messagetext.to_owned(),
+            guild_message: Some(guild_message),
+            active: true,
+        })
+        .await?;
 
     Ok(())
 }
