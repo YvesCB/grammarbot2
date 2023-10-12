@@ -1,6 +1,6 @@
 use log::{error, warn};
 use once_cell::sync::Lazy;
-use poise::serenity_prelude::{GuildId, Message};
+use poise::serenity_prelude::{Emoji, GuildId, Message};
 use surrealdb::engine::remote::ws::{Client, Ws};
 use surrealdb::opt::auth::Root;
 use surrealdb::Surreal;
@@ -28,7 +28,11 @@ pub async fn initiate_db() -> surrealdb::Result<()> {
     DB.use_ns(constants::DB_NS)
         .use_db(constants::DB_DEFAULT_DB)
         .await?;
-    warn!("Using ns discordbot and db grammarbot");
+    warn!(
+        "Using ns {} and db {}",
+        constants::DB_NS,
+        constants::DB_DEFAULT_DB
+    );
 
     Ok(())
 }
@@ -54,7 +58,11 @@ pub async fn create_tag(tag: Tag, guildid: Option<GuildId>) -> Result<Tag, DBIEr
 
     match created_tag {
         Some(t) => {
-            warn!("In: {} created Tag: {:?}", &guildid.unwrap().0, &t);
+            warn!(
+                "In {}, db_interactions::create_tag: created Tag: {:?}",
+                &guildid.unwrap().0,
+                &t
+            );
             Ok(t)
         }
         None => return Err(DBIError::TagAlreadyExists),
@@ -91,7 +99,11 @@ pub async fn remove_tag(tagname: &str, guildid: Option<GuildId>) -> Result<Tag, 
     let tag: Option<Tag> = DB.delete((constants::DB_TAGS, tagname)).await?;
     match tag {
         Some(t) => {
-            warn!("In: {} removed Tag: {:?}", &guildid.unwrap().0, &t);
+            warn!(
+                "In {}, db_interaction::remove_tag: removed Tag: {:?}",
+                &guildid.unwrap().0,
+                &t
+            );
             Ok(t)
         }
         None => Err(DBIError::TagNotFound),
@@ -118,7 +130,11 @@ pub async fn add_role(role: UserRole, guildid: Option<GuildId>) -> Result<UserRo
         .await?;
     match created {
         Some(ur) => {
-            warn!("In: {} added UserRole: {:?}", &guildid.unwrap().0, &ur);
+            warn!(
+                "In {}, db_interaction::add_role: added UserRole: {:?}",
+                &guildid.unwrap().0,
+                &ur
+            );
             Ok(ur)
         }
         None => Err(DBIError::RoleAlreadyExists),
@@ -147,7 +163,11 @@ pub async fn remove_role(role: UserRole, guildid: Option<GuildId>) -> Result<Use
         .await?;
     match removed_role {
         Some(ur) => {
-            warn!("In: {} removed UserRole: {:?}", guildid.unwrap().0, &ur);
+            warn!(
+                "In {}, db_interaction::remove_role: removed UserRole: {:?}",
+                guildid.unwrap().0,
+                &ur
+            );
             Ok(ur)
         }
         None => Err(DBIError::RoleNotFound),
@@ -178,7 +198,7 @@ pub async fn set_role_message(msg: String, guildid: Option<GuildId>) -> Result<(
                 })
                 .await?;
             warn!(
-                "In: {} changed role message from \"{}\" to \"{}\"",
+                "In {}, db_interaction::set_role_message: changed role message from \"{}\" to \"{}\"",
                 guildid.unwrap().0,
                 &cur_msg.messagetext,
                 &msg
@@ -194,7 +214,7 @@ pub async fn set_role_message(msg: String, guildid: Option<GuildId>) -> Result<(
                 })
                 .await?;
             warn!(
-                "In: {} created role message \"{}\"",
+                "In {}, db_interactions::set_role_message: created role message \"{}\"",
                 guildid.unwrap().0,
                 &msg
             );
@@ -223,6 +243,48 @@ pub async fn activate_role_message(
             active: true,
         })
         .await?;
+
+    Ok(())
+}
+
+// updates the current point emote or will create the entry if none exists
+pub async fn set_point_emote(
+    point_emote: &Emoji,
+    guildid: Option<GuildId>,
+) -> Result<(), DBIError> {
+    setdb(&guildid).await?;
+
+    dbg!(point_emote);
+    let cur_emote: Option<PointEmote> = DB.select((constants::DB_POINTEMOTE, "0")).await?;
+    match cur_emote {
+        Some(emote) => {
+            let _newemote: Option<PointEmote> = DB
+                .update((constants::DB_POINTEMOTE, "0"))
+                .content(PointEmote {
+                    guild_emote: point_emote.to_owned(),
+                })
+                .await?;
+            warn!(
+                "In {}, db_interaction::set_point_emote: changed point emote from {} to {}",
+                guildid.unwrap().0,
+                &emote.guild_emote.name,
+                &point_emote.name
+            );
+        }
+        None => {
+            let _newemote: Option<PointEmote> = DB
+                .create((constants::DB_POINTEMOTE, "0"))
+                .content(PointEmote {
+                    guild_emote: point_emote.to_owned(),
+                })
+                .await?;
+            warn!(
+                "In {}, db_interactions::set_point_emote: created point emote \"{}\"",
+                guildid.unwrap().0,
+                &point_emote.name
+            );
+        }
+    };
 
     Ok(())
 }

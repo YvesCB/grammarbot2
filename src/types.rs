@@ -33,6 +33,11 @@ pub struct RoleMessage {
     pub active: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PointEmote {
+    pub guild_emote: Emoji,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Record {
     #[allow(dead_code)]

@@ -29,7 +29,7 @@ async fn main() {
                 commands_util::tag(),
                 commands_util::create_tag(),
                 commands_util::role(),
-                commands_util::members(),
+                commands_util::points(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some(constants::BOT_PREFIX.into()),

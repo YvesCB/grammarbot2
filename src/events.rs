@@ -26,40 +26,47 @@ fn handle_message(msg: &Message) {
     // println!("Someone posted: {:?}", msg);
 }
 
-// async fn handle_add_reaction_test(reaction: &Reaction, ctx: &Context) -> Result<(), DBIError> {
-//     if let Some(guild) = ctx.cache.guild(reaction.guild_id.unwrap()) {
-//         dbg!(guild.members);
-//     }
-//     Ok(())
-// }
-
 async fn handle_add_reaction(ctx: &Context, reaction: &Reaction) -> Result<(), Error> {
-    if let Some((mut member, ur)) = get_member_for_role_edit(ctx, reaction).await? {
-        let _ = member.add_role(&ctx.http, ur.guild_role.id).await;
-        warn!(
-            "In {}: Added role {} to member {} with reaction.",
-            reaction.guild_id.unwrap().0,
-            ur.guild_role.name,
-            member.display_name()
-        );
+    if reaction.user_id.unwrap() != ctx.cache.current_user_id() {
+        // this gets executed when someone reacts to the role select message
+        if let Some((mut member, ur)) = get_member_for_role_edit(ctx, reaction).await? {
+            let _ = member.add_role(&ctx.http, ur.guild_role.id).await;
+            warn!(
+                "In {}, events::handle_add_reaction: Added role {} to member {} with reaction.",
+                reaction.guild_id.unwrap().0,
+                ur.guild_role.name,
+                member.display_name()
+            );
+        } else {
+            warn!(
+                "In {}, events::handle_remove_reaction: In process of role_msg update.",
+                reaction.guild_id.unwrap().0
+            );
+        };
     } else {
-        error!("In {}: Can't access members.", reaction.guild_id.unwrap().0);
+        // here we handle other cases
     };
 
     Ok(())
 }
 
 async fn handle_remove_reaction(ctx: &Context, reaction: &Reaction) -> Result<(), Error> {
-    if let Some((mut member, ur)) = get_member_for_role_edit(ctx, reaction).await? {
-        let _ = member.remove_role(&ctx.http, ur.guild_role.id).await;
-        warn!(
-            "In {}: Removed role {} from member {} with reaction.",
-            reaction.guild_id.unwrap().0,
-            ur.guild_role.name,
-            member.display_name()
-        );
-    } else {
-        error!("In {}: Can't access members.", reaction.guild_id.unwrap().0);
+    if reaction.user_id.unwrap() != ctx.cache.current_user_id() {
+        // this gets executed when someone reacts to the role select message
+        if let Some((mut member, ur)) = get_member_for_role_edit(ctx, reaction).await? {
+            let _ = member.remove_role(&ctx.http, ur.guild_role.id).await;
+            warn!(
+                "In {}, events::handle_remove_reaction: Removed role {} from member {} with reaction.",
+                reaction.guild_id.unwrap().0,
+                ur.guild_role.name,
+                member.display_name()
+            );
+        } else {
+            warn!(
+                "In {}, events::handle_remove_reaction: In process of role_msg update.",
+                reaction.guild_id.unwrap().0
+            );
+        };
     };
 
     Ok(())
@@ -90,10 +97,10 @@ async fn get_member_for_role_edit(
                             .filter(|ur| ur.emote.id.0 == id.0)
                             .next()
                         {
-                            if let Some(mut member) = ctx.cache.member(guild_id, user_id) {
+                            if let Some(member) = ctx.cache.member(guild_id, user_id) {
                                 return Ok(Some((member, ur)));
                             } else {
-                                error!("In {}: Can't access members.", guild_id.0);
+                                error!("In {}, events::get_member_for_role_edit: Can't access members.", guild_id.0);
                                 return Ok(None);
                             };
                         };

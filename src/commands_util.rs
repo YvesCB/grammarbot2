@@ -1,5 +1,6 @@
 use crate::dbi;
 use crate::types::*;
+use log::warn;
 use poise::serenity_prelude::Channel;
 use poise::serenity_prelude::{CacheHttp, Emoji, Role};
 
@@ -356,5 +357,33 @@ pub async fn post_msg_role(
         }
     };
 
+    Ok(())
+}
+
+/// Grammarpoint parent command
+#[poise::command(slash_command, subcommands("emote_set",))]
+pub async fn points(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+/// Set the emote for the grammar points
+///
+/// This command is used to set an emote from the guild to be the GrammarPoint emote. Whenever a
+/// user that isn't the author of the message reacts with said emote to a message, one GrammarPoint
+/// will be added to the authors Points.
+#[poise::command(
+    slash_command,
+    required_permissions = "MANAGE_ROLES",
+    category = "Points",
+    guild_only
+)]
+pub async fn emote_set(
+    ctx: Context<'_>,
+    #[description = "Chose channel"] emote: Emoji,
+) -> Result<(), Error> {
+    dbi::set_point_emote(&emote, ctx.guild_id()).await?;
+
+    ctx.say(format!("Set the new point emote to: {}", emote))
+        .await?;
     Ok(())
 }
