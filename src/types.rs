@@ -1,6 +1,4 @@
-use poise::serenity_prelude::Emoji;
-use poise::serenity_prelude::Message;
-use poise::serenity_prelude::Role;
+use poise::serenity_prelude::{Emoji, Message, Role, User};
 use serde::{Deserialize, Serialize};
 use std::error;
 use std::fmt;
@@ -10,12 +8,13 @@ use surrealdb::sql::Thing;
 pub struct Tag {
     pub name: String,
     pub content: String,
+    pub creator: User,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct User {
+pub struct MyUser {
     pub name: String,
-    pub discordid: String,
+    pub discord_user: User,
     pub grammarpoints: u32,
 }
 
@@ -31,11 +30,16 @@ pub struct RoleMessage {
     pub messagetext: String,
     pub guild_message: Option<Message>,
     pub active: bool,
+    pub message_by: User,
+    pub posted_by: Option<User>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PointEmote {
+pub struct PointsData {
     pub guild_emote: Emoji,
+    pub set_by: User,
+    pub active: bool,
+    pub total: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -62,12 +66,12 @@ pub enum DBIError {
 impl fmt::Display for DBIError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            DBIError::DBError(e) => write!(f, "error when accessing the DB: {}", e),
-            DBIError::TagAlreadyExists => write!(f, "tag name already exists"),
-            DBIError::TagNotFound => write!(f, "tag name not found"),
-            DBIError::UserNotFound => write!(f, "user not found"),
-            DBIError::RoleAlreadyExists => write!(f, "role already exists"),
-            DBIError::RoleNotFound => write!(f, "role not found"),
+            DBIError::DBError(e) => write!(f, "Error when accessing the DB: {}", e),
+            DBIError::TagAlreadyExists => write!(f, "Tag name already exists"),
+            DBIError::TagNotFound => write!(f, "Tag name not found"),
+            DBIError::UserNotFound => write!(f, "User not found"),
+            DBIError::RoleAlreadyExists => write!(f, "Role already exists"),
+            DBIError::RoleNotFound => write!(f, "Role not found"),
         }
     }
 }

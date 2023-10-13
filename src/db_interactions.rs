@@ -1,6 +1,6 @@
-use log::{error, warn};
+use log::warn;
 use once_cell::sync::Lazy;
-use poise::serenity_prelude::{Emoji, GuildId, Message};
+use poise::serenity_prelude::{Emoji, GuildId, Message, User};
 use surrealdb::engine::remote::ws::{Client, Ws};
 use surrealdb::opt::auth::Root;
 use surrealdb::Surreal;
@@ -51,21 +51,17 @@ async fn setdb(guildid: &Option<GuildId>) -> Result<(), DBIError> {
 pub async fn create_tag(tag: Tag, guildid: Option<GuildId>) -> Result<Tag, DBIError> {
     setdb(&guildid).await?;
 
-    let created_tag: Option<Tag> = DB
-        .create((constants::DB_TAGS, &tag.name))
-        .content(tag)
-        .await?;
+    let existing_tag: Option<Tag> = DB.select((constants::DB_TAGS, &tag.name)).await?;
 
-    match created_tag {
-        Some(t) => {
-            warn!(
-                "In {}, db_interactions::create_tag: created Tag: {:?}",
-                &guildid.unwrap().0,
-                &t
-            );
-            Ok(t)
+    match existing_tag {
+        Some(_) => Err(DBIError::TagAlreadyExists),
+        None => {
+            let created_tag: Option<Tag> = DB
+                .create((constants::DB_TAGS, &tag.name))
+                .content(tag)
+                .await?;
+            Ok(created_tag.unwrap())
         }
-        None => return Err(DBIError::TagAlreadyExists),
     }
 }
 
@@ -183,7 +179,11 @@ pub async fn get_role_message(guildid: Option<GuildId>) -> Result<Option<RoleMes
 }
 
 /// Sets the current role message for the server. If one already exists, it is overwritten
-pub async fn set_role_message(msg: String, guildid: Option<GuildId>) -> Result<(), DBIError> {
+pub async fn set_role_message(
+    msg: String,
+    user: &User,
+    guildid: Option<GuildId>,
+) -> Result<(), DBIError> {
     setdb(&guildid).await?;
 
     let cur_message: Option<RoleMessage> = DB.select((constants::DB_ROLEMSG, "0")).await?;
@@ -195,6 +195,8 @@ pub async fn set_role_message(msg: String, guildid: Option<GuildId>) -> Result<(
                     messagetext: msg.to_owned(),
                     guild_message: cur_msg.guild_message.to_owned(),
                     active: cur_msg.active.to_owned(),
+                    message_by: user.to_owned(),
+                    posted_by: cur_msg.posted_by.to_owned(),
                 })
                 .await?;
             warn!(
@@ -211,6 +213,8 @@ pub async fn set_role_message(msg: String, guildid: Option<GuildId>) -> Result<(
                     messagetext: msg.to_owned(),
                     guild_message: None,
                     active: false,
+                    message_by: user.to_owned(),
+                    posted_by: None,
                 })
                 .await?;
             warn!(
@@ -228,9 +232,11 @@ pub async fn set_role_message(msg: String, guildid: Option<GuildId>) -> Result<(
 /// to true
 ///
 /// This function may only be called when a role message has been previously set!
-pub async fn activate_role_message(
+pub async fn set_active_role_message(
     role_message: &RoleMessage,
     guild_message: Message,
+    state: bool,
+    user: &User,
     guildid: Option<GuildId>,
 ) -> Result<(), DBIError> {
     setdb(&guildid).await?;
@@ -240,42 +246,59 @@ pub async fn activate_role_message(
         .content(RoleMessage {
             messagetext: role_message.messagetext.to_owned(),
             guild_message: Some(guild_message),
-            active: true,
+            active: state,
+            message_by: role_message.message_by.to_owned(),
+            posted_by: Some(user.to_owned()),
         })
         .await?;
 
     Ok(())
 }
 
-// updates the current point emote or will create the entry if none exists
+/// get the current point emote record
+pub async fn get_point_data(guildid: Option<GuildId>) -> Result<Option<PointsData>, DBIError> {
+    setdb(&guildid).await?;
+
+    let cur_point_emote: Option<PointsData> = DB.select((constants::DB_POINTEMOTE, "0")).await?;
+
+    Ok(cur_point_emote)
+}
+
+/// updates the current point emote or will create the entry if none exists
 pub async fn set_point_emote(
     point_emote: &Emoji,
+    user: &User,
     guildid: Option<GuildId>,
 ) -> Result<(), DBIError> {
     setdb(&guildid).await?;
 
-    dbg!(point_emote);
-    let cur_emote: Option<PointEmote> = DB.select((constants::DB_POINTEMOTE, "0")).await?;
-    match cur_emote {
-        Some(emote) => {
-            let _newemote: Option<PointEmote> = DB
+    let cur_points: Option<PointsData> = DB.select((constants::DB_POINTEMOTE, "0")).await?;
+    match cur_points {
+        Some(p) => {
+            let _: Option<PointsData> = DB
                 .update((constants::DB_POINTEMOTE, "0"))
-                .content(PointEmote {
+                .content(PointsData {
                     guild_emote: point_emote.to_owned(),
+                    set_by: user.to_owned(),
+                    active: p.active,
+                    total: p.total,
                 })
                 .await?;
             warn!(
                 "In {}, db_interaction::set_point_emote: changed point emote from {} to {}",
                 guildid.unwrap().0,
-                &emote.guild_emote.name,
+                &p.guild_emote.name,
                 &point_emote.name
             );
         }
         None => {
-            let _newemote: Option<PointEmote> = DB
+            let _: Option<PointsData> = DB
                 .create((constants::DB_POINTEMOTE, "0"))
-                .content(PointEmote {
+                .content(PointsData {
                     guild_emote: point_emote.to_owned(),
+                    set_by: user.to_owned(),
+                    active: false,
+                    total: 0,
                 })
                 .await?;
             warn!(

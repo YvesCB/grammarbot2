@@ -11,6 +11,9 @@ mod commands_util;
 mod constants;
 mod db_interactions;
 mod events;
+mod point_commands;
+mod role_commands;
+mod tag_commands;
 mod types;
 
 #[tokio::main]
@@ -26,10 +29,10 @@ async fn main() {
             commands: vec![
                 commands_util::help(),
                 commands_util::register(),
-                commands_util::tag(),
-                commands_util::create_tag(),
-                commands_util::role(),
-                commands_util::points(),
+                tag_commands::tag(),
+                tag_commands::create_tag(),
+                role_commands::role(),
+                point_commands::points(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some(constants::BOT_PREFIX.into()),
