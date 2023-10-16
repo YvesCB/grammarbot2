@@ -46,7 +46,12 @@ pub async fn show_tag(
 ///
 /// The name needs to be one word without spaces. Everything after the name will be considered part
 /// of the content
-#[poise::command(prefix_command, category = "Tags", guild_only)]
+#[poise::command(
+    prefix_command,
+    required_permissions = "MANAGE_MESSAGES",
+    category = "Tags",
+    guild_only
+)]
 pub async fn create_tag(
     ctx: Context<'_>,
     tagname: String,

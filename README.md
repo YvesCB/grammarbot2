@@ -11,6 +11,21 @@ In its current state, the bot can:
 * create tags, show tags and delete tags (which are basically pre-written messages)
 * create embeds
 
+### Tags
+The bot can store and display pre-written messages. They can be at most as long as the message character limit and the names of the tags must be unique.
+
+To create and delete tags, the user must have the `MANAGE_MESSAGES` perm.
+
+### Roles
+The bot can store a message and a list of guild roles to create a message on the server with reactions corresponding to roles, which will allow users to add roles to themselves by reacting to the message.
+
+All the commands for this category require the `MANAGE_ROLES` perm.
+
+### Points
+The bot will keep track of Points for each member of the guild. A guild emote can be specified to be the "Point Emote" after which point, everytime a user receives a reaction with said emote to one of their messages, a point is added to their balance. Users cannot add points to their own messages and when the reaction is removed, the point is removed.
+
+The commands to set up this functionality require the `ADMINISTRATOR` perm.
+
 ## Roadmap
 - [X] get basic bot running: Token, responding to a command/message
 - [X] get basic slash commands
@@ -20,6 +35,12 @@ In its current state, the bot can:
     - [X] read db records
 - [X] logging
 - [ ] rewrite commands
+    - [X] Tags
+    - [X] Points
+    - [X] Roles
+    - [ ] User stats
+    - [ ] Twitch/YT stuff
+    - [ ] Custom Help command
 
 ## Requirments
 This bot relies on a running [SurrealDB](https://surrealdb.com/) server. The credentials for the server need to be in the env vars `SURREAL_USER` and `SURREAL_PASS`.
