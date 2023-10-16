@@ -13,7 +13,7 @@ pub struct Tag {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MyUser {
-    pub name: String,
+    pub discord_id: String,
     pub discord_user: User,
     pub grammarpoints: u32,
 }
@@ -61,6 +61,7 @@ pub enum DBIError {
     UserNotFound,
     RoleAlreadyExists,
     RoleNotFound,
+    PointDataNotFound,
 }
 
 impl fmt::Display for DBIError {
@@ -72,6 +73,7 @@ impl fmt::Display for DBIError {
             DBIError::UserNotFound => write!(f, "User not found"),
             DBIError::RoleAlreadyExists => write!(f, "Role already exists"),
             DBIError::RoleNotFound => write!(f, "Role not found"),
+            DBIError::PointDataNotFound => write!(f, "Points data doesn't exist"),
         }
     }
 }
@@ -84,6 +86,7 @@ impl error::Error for DBIError {
             DBIError::UserNotFound => None,
             DBIError::RoleAlreadyExists => None,
             DBIError::RoleNotFound => None,
+            DBIError::PointDataNotFound => None,
             // The cause is the underlying implementation error type. Is implicitly
             // cast to the trait object `&error::Error`. This works because the
             // underlying type already implements the `Error` trait.

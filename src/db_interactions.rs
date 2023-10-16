@@ -193,10 +193,8 @@ pub async fn set_role_message(
                 .update((constants::DB_ROLEMSG, "0"))
                 .content(RoleMessage {
                     messagetext: msg.to_owned(),
-                    guild_message: cur_msg.guild_message.to_owned(),
-                    active: cur_msg.active.to_owned(),
                     message_by: user.to_owned(),
-                    posted_by: cur_msg.posted_by.to_owned(),
+                    ..cur_msg
                 })
                 .await?;
             warn!(
@@ -244,18 +242,31 @@ pub async fn set_active_role_message(
     let _newmessage: Option<RoleMessage> = DB
         .update((constants::DB_ROLEMSG, "0"))
         .content(RoleMessage {
-            messagetext: role_message.messagetext.to_owned(),
             guild_message: Some(guild_message),
             active: state,
-            message_by: role_message.message_by.to_owned(),
             posted_by: Some(user.to_owned()),
+            ..role_message.to_owned()
         })
         .await?;
 
     Ok(())
 }
 
-/// get the current point emote record
+/// Get the data for a specific user
+pub async fn get_user_data(guildid: Option<GuildId>, user_id: u64) -> Result<MyUser, DBIError> {
+    setdb(&guildid).await?;
+
+    let user: Option<MyUser> = DB
+        .select((constants::DB_USERS, user_id.to_string()))
+        .await?;
+
+    match user {
+        Some(u) => Ok(u),
+        None => Err(DBIError::UserNotFound),
+    }
+}
+
+/// Get the current point emote record
 pub async fn get_point_data(guildid: Option<GuildId>) -> Result<Option<PointsData>, DBIError> {
     setdb(&guildid).await?;
 
@@ -264,7 +275,69 @@ pub async fn get_point_data(guildid: Option<GuildId>) -> Result<Option<PointsDat
     Ok(cur_point_emote)
 }
 
-/// updates the current point emote or will create the entry if none exists
+/// Change points for a given user using the given function to apply to points
+///
+/// This will create a new user if no record exists in DB
+pub async fn change_user_points(
+    guildid: Option<GuildId>,
+    user: User,
+    func: fn(u32) -> u32,
+) -> Result<MyUser, DBIError> {
+    setdb(&guildid).await?;
+
+    let cur_user: Option<MyUser> = DB
+        .select((constants::DB_USERS, user.id.to_string()))
+        .await?;
+
+    let cur_point_stats: Option<PointsData> = DB.select((constants::DB_POINTEMOTE, "0")).await?;
+
+    match (cur_user, cur_point_stats) {
+        (Some(u), Some(p)) => {
+            let new_user = MyUser {
+                grammarpoints: func(u.grammarpoints),
+                ..u
+            };
+            let new_points = PointsData {
+                total: func(p.total),
+                ..p
+            };
+            let _: Option<MyUser> = DB
+                .update((constants::DB_USERS, user.id.to_string()))
+                .content(new_user.to_owned())
+                .await?;
+            let _: Option<PointsData> = DB
+                .update((constants::DB_POINTEMOTE, "0"))
+                .content(new_points.to_owned())
+                .await?;
+
+            Ok(new_user)
+        }
+        (None, Some(p)) => {
+            let new_points = PointsData {
+                total: func(p.total),
+                ..p
+            };
+            let new_user = MyUser {
+                discord_id: user.id.to_string(),
+                discord_user: user.to_owned(),
+                grammarpoints: 1,
+            };
+            let _: Option<MyUser> = DB
+                .create((constants::DB_USERS, user.id.to_string()))
+                .content(new_user.to_owned())
+                .await?;
+            let _: Option<PointsData> = DB
+                .update((constants::DB_POINTEMOTE, "0"))
+                .content(new_points.to_owned())
+                .await?;
+
+            Ok(new_user)
+        }
+        _ => Err(DBIError::PointDataNotFound),
+    }
+}
+
+/// Updates the current point emote or will create the entry if none exists
 pub async fn set_point_emote(
     point_emote: &Emoji,
     user: &User,

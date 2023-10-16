@@ -1,7 +1,7 @@
 use crate::dbi;
 use crate::serenity::Context;
 use crate::types::*;
-use log::warn;
+use log::{error, warn};
 use poise::serenity_prelude::ReactionType;
 use poise::{
     event::Event,
@@ -56,12 +56,20 @@ async fn handle_add_reaction(ctx: &Context, reaction: &Reaction) -> Result<(), E
             (
                 Reaction {
                     emoji: ReactionType::Custom { id, .. },
+                    message_id,
+                    channel_id,
                     ..
                 },
                 _,
                 Some(cpe),
             ) if cpe.guild_emote.id.0 == id.0 => {
-                println!("point emote used by {}", reaction.user(ctx).await?.name);
+                let message_reacted_to = ctx
+                    .cache
+                    .guild_channel(channel_id)
+                    .unwrap()
+                    .message(ctx, message_id)
+                    .await?;
+                handle_add_point(&ctx, &reaction, message_reacted_to).await?;
             }
             _ => {}
         }
@@ -100,12 +108,20 @@ async fn handle_remove_reaction(ctx: &Context, reaction: &Reaction) -> Result<()
             (
                 Reaction {
                     emoji: ReactionType::Custom { id, .. },
+                    message_id,
+                    channel_id,
                     ..
                 },
                 _,
                 Some(cpe),
             ) if cpe.guild_emote.id.0 == id.0 => {
-                println!("point emote used by {}", reaction.user(ctx).await?.name);
+                let message_reacted_to = ctx
+                    .cache
+                    .guild_channel(channel_id)
+                    .unwrap()
+                    .message(ctx, message_id)
+                    .await?;
+                handle_remove_point(&ctx, &reaction, message_reacted_to).await?;
             }
 
             _ => {}
@@ -185,6 +201,66 @@ async fn handle_remove_role(
                     .await;
             };
         };
+    };
+
+    Ok(())
+}
+
+async fn handle_add_point(
+    ctx: &Context,
+    reaction: &Reaction,
+    message: Message,
+) -> Result<(), Error> {
+    let user = ctx.cache.user(reaction.user_id.unwrap());
+    match user {
+        Some(u) if u.id.0 != message.author.id.0 => {
+            let author = ctx.cache.user(message.author.id).unwrap();
+            let new_user_state =
+                dbi::change_user_points(reaction.guild_id, author, |p| p + 1).await?;
+            warn!(
+                "In {}, events::handle_add_point: Added point to {}, new balance {}.",
+                reaction.guild_id.unwrap().0,
+                new_user_state.discord_user.name,
+                new_user_state.grammarpoints
+            );
+        }
+        None => {
+            error!(
+                "In {}, events::handle_add_point: Could not get User struct from reaction.",
+                reaction.guild_id.unwrap().0
+            );
+        }
+        _ => {}
+    };
+
+    Ok(())
+}
+
+async fn handle_remove_point(
+    ctx: &Context,
+    reaction: &Reaction,
+    message: Message,
+) -> Result<(), Error> {
+    let user = ctx.cache.user(reaction.user_id.unwrap());
+    match user {
+        Some(u) if u.id.0 != message.author.id.0 => {
+            let author = ctx.cache.user(message.author.id).unwrap();
+            let new_user_state =
+                dbi::change_user_points(reaction.guild_id, author, |p| p - 1).await?;
+            warn!(
+                "In {}, events::handle_add_point: Removed point from {}, new balance {}.",
+                reaction.guild_id.unwrap().0,
+                new_user_state.discord_user.name,
+                new_user_state.grammarpoints
+            );
+        }
+        None => {
+            error!(
+                "In {}, events::handle_add_point: Could not get User struct from reaction.",
+                reaction.guild_id.unwrap().0
+            );
+        }
+        _ => {}
     };
 
     Ok(())
