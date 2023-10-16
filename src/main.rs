@@ -15,6 +15,7 @@ mod point_commands;
 mod role_commands;
 mod tag_commands;
 mod types;
+mod user_commands;
 
 #[tokio::main]
 async fn main() {
@@ -34,6 +35,7 @@ async fn main() {
                 tag_commands::create_tag(),
                 role_commands::role(),
                 point_commands::points(),
+                user_commands::user_info(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some(constants::BOT_PREFIX.into()),
