@@ -3,7 +3,11 @@ use crate::types::*;
 use poise::serenity_prelude::Emoji;
 
 /// Grammarpoint parent command
-#[poise::command(slash_command, subcommands("emote_set", "emote_stats"))]
+#[poise::command(
+    slash_command,
+    default_member_permissions = "ADMINISTRATOR",
+    subcommands("emote_set", "emote_stats")
+)]
 pub async fn points(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }

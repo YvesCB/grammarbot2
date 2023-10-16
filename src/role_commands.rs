@@ -6,6 +6,7 @@ use poise::serenity_prelude::{CacheHttp, Emoji, Role};
 /// Role parent command
 #[poise::command(
     slash_command,
+    default_member_permissions = "MANAGE_ROLES",
     subcommands(
         "add_role",
         "remove_role",

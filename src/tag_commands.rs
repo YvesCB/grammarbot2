@@ -14,15 +14,19 @@ async fn autocomplete_tagname<'a>(ctx: Context<'_>, partial: &'a str) -> Vec<Str
 }
 
 /// Tag parent command
-#[poise::command(slash_command, subcommands("remove_tag", "show_tag"))]
-pub async fn tag(_ctx: Context<'_>) -> Result<(), Error> {
+#[poise::command(
+    slash_command,
+    default_member_permissions = "MANAGE_MESSAGES",
+    subcommands("remove_tag")
+)]
+pub async fn tags(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
 /// Show a pre-written Tag with prepared information.
 ///
 /// Specify the name and the tag will be displayed if it exists.
-#[poise::command(slash_command, category = "Tags", rename = "show", guild_only)]
+#[poise::command(slash_command, category = "Tags", rename = "tag", guild_only)]
 pub async fn show_tag(
     ctx: Context<'_>,
     #[description = "Select a tag"]
