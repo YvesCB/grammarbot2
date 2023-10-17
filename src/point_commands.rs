@@ -1,12 +1,13 @@
 use crate::dbi;
 use crate::types::*;
-use poise::serenity_prelude::Emoji;
+use crate::user_commands::user;
+use poise::serenity_prelude::{Colour, Emoji};
 
 /// Grammarpoint parent command
 #[poise::command(
     slash_command,
     default_member_permissions = "ADMINISTRATOR",
-    subcommands("emote_set", "emote_stats")
+    subcommands("emote_set", "emote_stats", "leaderboard")
 )]
 pub async fn points(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
@@ -57,12 +58,53 @@ pub async fn emote_stats(ctx: Context<'_>) -> Result<(), Error> {
                         .field("Point emote", pointsdata.guild_emote, false)
                         .field("Active", pointsdata.active, false)
                         .field("Total points scored", pointsdata.total, false)
+                        .colour(Colour::BLUE)
+                        .footer(|f| {
+                            f.text(format!("Requested by: {}", ctx.author().name))
+                                .icon_url(
+                                    ctx.serenity_context()
+                                        .cache
+                                        .current_user()
+                                        .avatar_url()
+                                        .unwrap(),
+                                )
+                        })
                 })
             }).await?;
         }
         None => {
             ctx.say("You need to chose a emote to use to collect points by using the `/points emote_set` command.").await?;
         }
+    }
+
+    Ok(())
+}
+
+/// Show the leaderboard for points on the server
+///
+/// Use this command to show the leaderboards for the points on this server.
+#[poise::command(
+    slash_command,
+    required_permissions = "ADMINISTRATOR",
+    category = "Points",
+    guild_only,
+    rename = "leaderboard"
+)]
+pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
+    let point_data = dbi::get_point_data(ctx.guild_id()).await?;
+    let mut user_data = dbi::get_all_user_data(ctx.guild_id()).await?;
+
+    if let Some(points_data) = point_data {
+        if user_data.len() == 0 {
+            ctx.say("No points earned on this server yet.").await?;
+        } else {
+            user_data.sort_by_key(|a| std::cmp::Reverse(a.grammarpoints));
+            let slices = user_data.len() / 20;
+            let mut cur_slice = 0;
+            ctx.say("Done").await?;
+        }
+    } else {
+        ctx.say("No points earned on this server yet.").await?;
     }
 
     Ok(())

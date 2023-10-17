@@ -252,6 +252,15 @@ pub async fn set_active_role_message(
     Ok(())
 }
 
+/// Get all user data
+pub async fn get_all_user_data(guildid: Option<GuildId>) -> Result<Vec<MyUser>, DBIError> {
+    setdb(&guildid).await?;
+
+    let user_data: Vec<MyUser> = DB.select(constants::DB_USERS).await?;
+
+    Ok(user_data)
+}
+
 /// Get the data for a specific user
 pub async fn get_user_data(guildid: Option<GuildId>, user_id: u64) -> Result<MyUser, DBIError> {
     setdb(&guildid).await?;

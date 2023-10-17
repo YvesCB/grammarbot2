@@ -214,15 +214,18 @@ async fn handle_add_point(
     let user = ctx.cache.user(reaction.user_id.unwrap());
     match user {
         Some(u) if u.id.0 != message.author.id.0 => {
-            let author = ctx.cache.user(message.author.id).unwrap();
-            let new_user_state =
-                dbi::change_user_points(reaction.guild_id, author, |p| p + 1).await?;
-            warn!(
-                "In {}, events::handle_add_point: Added point to {}, new balance {}.",
-                reaction.guild_id.unwrap().0,
-                new_user_state.discord_user.name,
-                new_user_state.grammarpoints
-            );
+            if let Some(author) = ctx.cache.user(message.author.id) {
+                let new_user_state =
+                    dbi::change_user_points(reaction.guild_id, author, |p| p + 1).await?;
+                warn!(
+                    "In {}, events::handle_add_point: Added point to {}, new balance {}.",
+                    reaction.guild_id.unwrap().0,
+                    new_user_state.discord_user.name,
+                    new_user_state.grammarpoints
+                );
+            } else {
+                error!("In {}, events::handle_add_point: Attempted to add point to user that is no longer member.", reaction.guild_id.unwrap().0);
+            };
         }
         None => {
             error!(
@@ -244,15 +247,18 @@ async fn handle_remove_point(
     let user = ctx.cache.user(reaction.user_id.unwrap());
     match user {
         Some(u) if u.id.0 != message.author.id.0 => {
-            let author = ctx.cache.user(message.author.id).unwrap();
-            let new_user_state =
-                dbi::change_user_points(reaction.guild_id, author, |p| p - 1).await?;
-            warn!(
-                "In {}, events::handle_add_point: Removed point from {}, new balance {}.",
-                reaction.guild_id.unwrap().0,
-                new_user_state.discord_user.name,
-                new_user_state.grammarpoints
-            );
+            if let Some(author) = ctx.cache.user(message.author.id) {
+                let new_user_state =
+                    dbi::change_user_points(reaction.guild_id, author, |p| p - 1).await?;
+                warn!(
+                    "In {}, events::handle_add_point: Removed point from {}, new balance {}.",
+                    reaction.guild_id.unwrap().0,
+                    new_user_state.discord_user.name,
+                    new_user_state.grammarpoints
+                );
+            } else {
+                error!("In {}, events::handle_remove_point: Attempted to add point to user that is no longer member.", reaction.guild_id.unwrap().0);
+            };
         }
         None => {
             error!(

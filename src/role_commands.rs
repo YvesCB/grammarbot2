@@ -1,7 +1,6 @@
 use crate::dbi;
 use crate::types::*;
-use poise::serenity_prelude::Channel;
-use poise::serenity_prelude::{CacheHttp, Emoji, Role};
+use poise::serenity_prelude::{CacheHttp, Channel, Colour, Emoji, Role};
 
 /// Role parent command
 #[poise::command(
@@ -151,6 +150,17 @@ pub async fn show_msg_role(ctx: Context<'_>) -> Result<(), Error> {
                             true,
                         )
                         .field("Is active", msg.active, true)
+                        .colour(Colour::BLUE)
+                        .footer(|f| {
+                            f.text(format!("Requested by: {}", ctx.author().name))
+                                .icon_url(
+                                    ctx.serenity_context()
+                                        .cache
+                                        .current_user()
+                                        .avatar_url()
+                                        .unwrap(),
+                                )
+                        })
                 })
             })
             .await?;

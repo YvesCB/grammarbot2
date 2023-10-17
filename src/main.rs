@@ -30,6 +30,7 @@ async fn main() {
             commands: vec![
                 commands_util::help(),
                 commands_util::register(),
+                commands_util::page_test(),
                 tag_commands::tags(),
                 tag_commands::show_tag(),
                 tag_commands::create_tag(),

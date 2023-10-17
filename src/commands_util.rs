@@ -1,3 +1,5 @@
+use poise::serenity_prelude::{ButtonStyle, ReactionType};
+
 use crate::types::*;
 
 /// Register and unregister commands
@@ -27,5 +29,64 @@ You can edit your message to the bot and the bot will edit its response.",
         ..Default::default()
     };
     poise::builtins::help(ctx, command.as_deref(), config).await?;
+    Ok(())
+}
+
+/// A test for paging
+#[poise::command(slash_command)]
+pub async fn page_test(ctx: Context<'_>) -> Result<(), Error> {
+    let mut page = 1;
+
+    let reply = ctx
+        .send(|m| {
+            m.content(&page.to_string()).components(|c| {
+                c.create_action_row(|r| {
+                    r.create_button(|b| {
+                        b.custom_id("page.prev")
+                            .style(ButtonStyle::Primary)
+                            .disabled(match page {
+                                1 => true,
+                                _ => false,
+                            })
+                            .emoji(ReactionType::Unicode("⬅️".to_string()))
+                    })
+                    .create_button(|b| {
+                        b.custom_id("page.next")
+                            .style(ButtonStyle::Primary)
+                            .disabled(match page {
+                                3 => true,
+                                _ => false,
+                            })
+                            .emoji(ReactionType::Unicode("➡️".to_string()))
+                    })
+                })
+            })
+        })
+        .await?;
+
+    while let Some(interaction) = reply
+        .message()
+        .await?
+        .await_component_interaction(ctx)
+        .author_id(ctx.author().id)
+        .await
+    {
+        let pressed_button_id = &interaction.data.custom_id;
+
+        match &**pressed_button_id {
+            "page.prev" => {
+                page -= 1;
+                reply.edit(ctx, |b| b.content(&page.to_string())).await?;
+            }
+            "page.next" => {
+                page += 1;
+                reply.edit(ctx, |b| b.content(&page.to_string())).await?;
+            }
+            _ => {}
+        };
+    }
+
+    reply.edit(ctx, |b| b.components(|f| f).content("")).await?;
+
     Ok(())
 }
