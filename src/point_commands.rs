@@ -1,6 +1,8 @@
 use crate::dbi;
+use crate::embed_tools::paginate_with_embeds;
 use crate::types::*;
 use crate::user_commands::user;
+use poise::serenity_prelude::CreateEmbed;
 use poise::serenity_prelude::{Colour, Emoji};
 
 /// Grammarpoint parent command
@@ -94,14 +96,41 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let point_data = dbi::get_point_data(ctx.guild_id()).await?;
     let mut user_data = dbi::get_all_user_data(ctx.guild_id()).await?;
 
+    // check if we have any point_data
     if let Some(points_data) = point_data {
         if user_data.len() == 0 {
             ctx.say("No points earned on this server yet.").await?;
         } else {
+            // sort from most points to least points and slice into 20 entries per page
             user_data.sort_by_key(|a| std::cmp::Reverse(a.grammarpoints));
-            let slices = user_data.len() / 20;
-            let mut cur_slice = 0;
-            ctx.say("Done").await?;
+            let sliced_data: Vec<Vec<MyUser>> =
+                user_data.chunks(20).map(|chunk| chunk.to_vec()).collect();
+
+            let mut embeds: Vec<CreateEmbed> = Vec::with_capacity(sliced_data.len());
+            for slice in sliced_data {
+                let fields: Vec<(String, String, bool)> = slice
+                    .iter()
+                    .map(|user| {
+                        (
+                            format!("**{}**", user.discord_user.name),
+                            format!("{} Points", user.grammarpoints),
+                            true,
+                        )
+                    })
+                    .collect();
+                let embed = CreateEmbed::default()
+                    .title(format!("Point Leaderboard for {}", ctx.guild_id().unwrap().name(&ctx).unwrap()))
+                    .description(format!("Leaderboard for the points scored on this server. A total of **{} Points** have been scored on this server.", points_data.total))
+                    .fields(fields)
+                    .colour(Colour::BLUE)
+                    .footer(|f| 
+                        f.text(format!("Requsted by {}. Only they can change pages.", ctx.author().name))
+                    ).to_owned();
+
+                embeds.push(embed);
+            }
+
+            paginate_with_embeds(ctx, embeds).await?;
         }
     } else {
         ctx.say("No points earned on this server yet.").await?;

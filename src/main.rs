@@ -10,6 +10,7 @@ use types::*;
 mod commands_util;
 mod constants;
 mod db_interactions;
+mod embed_tools;
 mod events;
 mod point_commands;
 mod role_commands;
