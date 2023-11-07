@@ -3,6 +3,11 @@ use crate::types::*;
 use poise::serenity_prelude::{CacheHttp, Channel, Colour, Emoji, Role};
 
 /// Role parent command
+///
+/// This bot allows for assigning user roles via reactions to a message. With the commands in this
+/// category, you can create a custom message, assign different roles different emotes and then
+/// post the message. From that point, the bot will assign roles to users that react with the
+/// emote to said message and it'll remove it when the reaction is removed.
 #[poise::command(
     slash_command,
     default_member_permissions = "MANAGE_ROLES",
@@ -32,8 +37,8 @@ pub async fn role(_ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn add_role(
     ctx: Context<'_>,
-    #[description = "Chose a role"] role: Role,
-    #[description = "Chose an emote"] emote: Emoji,
+    #[description = "Role on this server"] role: Role,
+    #[description = "Emote for the role"] emote: Emoji,
     #[description = "Role description"] desc: String,
 ) -> Result<(), Error> {
     let ur = UserRole {
@@ -68,7 +73,7 @@ pub async fn add_role(
 )]
 pub async fn remove_role(
     ctx: Context<'_>,
-    #[description = "Chose a role"] role: Role,
+    #[description = "Role to remove"] role: Role,
 ) -> Result<(), Error> {
     let user_role = dbi::get_role(role.id.to_string(), ctx.guild_id()).await?;
 
@@ -101,7 +106,7 @@ pub async fn remove_role(
 )]
 pub async fn set_msg_role(
     ctx: Context<'_>,
-    #[description = "Set the desired message text"] msg: String,
+    #[description = "Desired message text"] msg: String,
 ) -> Result<(), Error> {
     match dbi::set_role_message(msg, ctx.author(), ctx.guild_id()).await {
         Ok(_) => {
@@ -188,7 +193,7 @@ pub async fn show_msg_role(ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn post_msg_role(
     ctx: Context<'_>,
-    #[description = "Chose channel"] channel: Channel,
+    #[description = "Channel to post in"] channel: Channel,
 ) -> Result<(), Error> {
     // First we get the components we need to build the message for the current server
     let cur_message = dbi::get_role_message(ctx.guild_id()).await?;
@@ -229,7 +234,7 @@ pub async fn post_msg_role(
 
 /// Set the active state of the role message
 ///
-/// This commmand let's you set the active state of the role message. If it is set to true, the bot
+/// This command let's you set the active state of the role message. If it is set to true, the bot
 /// will assign roles upon reaction, and if it's set to false, it won't.
 #[poise::command(
     slash_command,
@@ -240,7 +245,7 @@ pub async fn post_msg_role(
 )]
 pub async fn activate_msg_role(
     ctx: Context<'_>,
-    #[description = "Select state"] state: bool,
+    #[description = "New state"] state: bool,
 ) -> Result<(), Error> {
     if let Some(cur_msg) = dbi::get_role_message(ctx.guild_id()).await?.as_ref() {
         if let Some(guild_msg) = &cur_msg.guild_message {

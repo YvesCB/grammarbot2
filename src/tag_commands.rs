@@ -14,10 +14,14 @@ async fn autocomplete_tagname<'a>(ctx: Context<'_>, partial: &'a str) -> Vec<Str
 }
 
 /// Tag parent command
+///
+/// You can create pre-written message using a prefix command. These commands here let users
+/// display commands and admins to remove existing ones. You cannot change the content of a tag.
+/// You will have to remove it and re-create it.
 #[poise::command(
     slash_command,
     default_member_permissions = "MANAGE_MESSAGES",
-    subcommands("remove_tag")
+    subcommands("remove_tag", "show_tag")
 )]
 pub async fn tags(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
@@ -26,7 +30,7 @@ pub async fn tags(_ctx: Context<'_>) -> Result<(), Error> {
 /// Show a pre-written Tag with prepared information.
 ///
 /// Specify the name and the tag will be displayed if it exists.
-#[poise::command(slash_command, category = "Tags", rename = "tag", guild_only)]
+#[poise::command(slash_command, category = "Tags", rename = "show", guild_only)]
 pub async fn show_tag(
     ctx: Context<'_>,
     #[description = "Select a tag"]
@@ -49,7 +53,7 @@ pub async fn show_tag(
 /// Create a tag by specifying the name, followed by the content.
 ///
 /// The name needs to be one word without spaces. Everything after the name will be considered part
-/// of the content
+/// of the content.
 #[poise::command(
     prefix_command,
     required_permissions = "MANAGE_MESSAGES",
@@ -58,8 +62,10 @@ pub async fn show_tag(
 )]
 pub async fn create_tag(
     ctx: Context<'_>,
-    tagname: String,
-    #[rest] tagcontent: String,
+    #[description = "The name of the tag. Can't contain spaces"] tagname: String,
+    #[rest]
+    #[description = "The content of the tag"]
+    tagcontent: String,
 ) -> Result<(), Error> {
     let newtag = Tag {
         name: tagname,
@@ -80,7 +86,7 @@ pub async fn create_tag(
     Ok(())
 }
 
-/// Removes a tag
+/// Removes a tag.
 ///
 /// This command can only be used by people with the manage messages permission.
 #[poise::command(
@@ -92,7 +98,7 @@ pub async fn create_tag(
 )]
 pub async fn remove_tag(
     ctx: Context<'_>,
-    #[description = "Chose name"]
+    #[description = "Tagname of tag to remove"]
     #[autocomplete = "autocomplete_tagname"]
     tagname: String,
 ) -> Result<(), Error> {

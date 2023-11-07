@@ -4,16 +4,22 @@ use crate::types::*;
 use poise::serenity_prelude::Colour;
 use poise::serenity_prelude::Member;
 
+/// Parent command for the User category
+///
+/// Displaying user information and potentially more in the future.
 #[poise::command(slash_command, subcommands("user_info"))]
 pub async fn user(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
 /// Query information about a Discord profile
+///
+/// This command will display information about the user such as when then joined the server, when
+/// they created their account and also how many points they have collected on this server.
 #[poise::command(category = "User", slash_command, guild_only)]
 pub async fn user_info(
     ctx: Context<'_>,
-    #[description = "Discord profile to query information about"] user: Option<Member>,
+    #[description = "User to get info about"] user: Option<Member>,
 ) -> Result<(), Error> {
     match user {
         Some(m) => {

@@ -329,7 +329,7 @@ pub async fn change_user_points(
             let new_user = MyUser {
                 discord_id: user.id.to_string(),
                 discord_user: user.to_owned(),
-                grammarpoints: 1,
+                grammarpoints: func(0),
             };
             let _: Option<MyUser> = DB
                 .create((constants::DB_USERS, user.id.to_string()))

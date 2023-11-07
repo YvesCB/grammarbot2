@@ -1,14 +1,15 @@
 use crate::dbi;
 use crate::embed_tools::paginate_with_embeds;
 use crate::types::*;
-use crate::user_commands::user;
 use poise::serenity_prelude::CreateEmbed;
 use poise::serenity_prelude::{Colour, Emoji};
 
 /// Grammarpoint parent command
+///
+/// Commands for administering points on this server. This allows for setting or changing the point
+/// emote as a admin or just checking the leader board among other things.
 #[poise::command(
     slash_command,
-    default_member_permissions = "ADMINISTRATOR",
     subcommands("emote_set", "emote_stats", "leaderboard")
 )]
 pub async fn points(_ctx: Context<'_>) -> Result<(), Error> {
@@ -28,7 +29,7 @@ pub async fn points(_ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn emote_set(
     ctx: Context<'_>,
-    #[description = "Chose channel"] emote: Emoji,
+    #[description = "Guild Emote to use as point emote"] emote: Emoji,
 ) -> Result<(), Error> {
     dbi::set_point_emote(&emote, ctx.author(), ctx.guild_id()).await?;
 
@@ -82,12 +83,11 @@ pub async fn emote_stats(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/// Show the leaderboard for points on the server
+/// Show the leader board for points on the server
 ///
-/// Use this command to show the leaderboards for the points on this server.
+/// Use this command to show the leader boards for the points on this server.
 #[poise::command(
     slash_command,
-    required_permissions = "ADMINISTRATOR",
     category = "Points",
     guild_only,
     rename = "leaderboard"
@@ -95,6 +95,7 @@ pub async fn emote_stats(ctx: Context<'_>) -> Result<(), Error> {
 pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let point_data = dbi::get_point_data(ctx.guild_id()).await?;
     let mut user_data = dbi::get_all_user_data(ctx.guild_id()).await?;
+    let command_user = ctx.author();
 
     // check if we have any point_data
     if let Some(points_data) = point_data {
@@ -103,24 +104,38 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
         } else {
             // sort from most points to least points and slice into 20 entries per page
             user_data.sort_by_key(|a| std::cmp::Reverse(a.grammarpoints));
+
+            let command_user_position = match user_data
+                .iter()
+                .position(|u| u.discord_user.id.0 == command_user.id.0) {
+                    Some(i) => Some((i, &user_data[i])),
+                    None => None,
+                };
+
             let sliced_data: Vec<Vec<MyUser>> =
                 user_data.chunks(20).map(|chunk| chunk.to_vec()).collect();
 
             let mut embeds: Vec<CreateEmbed> = Vec::with_capacity(sliced_data.len());
-            for slice in sliced_data {
-                let fields: Vec<(String, String, bool)> = slice
-                    .iter()
-                    .map(|user| {
-                        (
-                            format!("**{}**", user.discord_user.name),
-                            format!("{} Points", user.grammarpoints),
-                            true,
-                        )
-                    })
-                    .collect();
+            for slice in sliced_data.iter() {
+                let mut fields: Vec<(String, String, bool)> = Vec::with_capacity(slice.len());
+                for (idx, user) in slice.iter().enumerate() {
+                    let field = (
+                        format!("**Rank {}**", idx*20 + 1),
+                        format!("{}: {}", user.discord_user.name, match user.grammarpoints {
+                            1 => String::from("**1** Point"),
+                            _ => format!("**{}** Points", user.grammarpoints),
+                            }),
+                        true,
+                    );
+                    fields.push(field);
+                }
+
                 let embed = CreateEmbed::default()
                     .title(format!("Point Leaderboard for {}", ctx.guild_id().unwrap().name(&ctx).unwrap()))
-                    .description(format!("Leaderboard for the points scored on this server. A total of **{} Points** have been scored on this server.", points_data.total))
+                    .description(format!("Leaderboard for the points scored on this server. A total of **{} Points** have been scored on this server. {}", points_data.total, match command_user_position {
+                        Some(u) => format!("**You** have scored **{}** Points and are Ranked **{}**", u.1.grammarpoints, u.0),
+                        None => String::from("**You** have not scored any points yet.")
+                    }))
                     .fields(fields)
                     .colour(Colour::BLUE)
                     .footer(|f| 

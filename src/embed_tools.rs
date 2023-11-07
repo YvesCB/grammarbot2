@@ -1,9 +1,6 @@
 use std::time::Duration;
 
-use poise::serenity_prelude::{
-    CollectComponentInteraction, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter,
-    InteractionResponseType,
-};
+use poise::serenity_prelude::{CollectComponentInteraction, CreateEmbed, InteractionResponseType};
 
 use crate::types::*;
 
@@ -99,6 +96,7 @@ pub async fn paginate_with_embeds(ctx: Context<'_>, embeds: Vec<CreateEmbed>) ->
     Ok(())
 }
 
+#[allow(dead_code)]
 pub async fn paginate_with_text(ctx: Context<'_>, texts: Vec<String>) -> Result<(), Error> {
     // Define some unique identifiers for the navigation buttons
     let ctx_id = ctx.id();

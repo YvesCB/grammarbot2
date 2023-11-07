@@ -11,7 +11,7 @@ use poise::{
 pub async fn my_event_handler(ctx: &Context, event: &Event<'_>) -> Result<(), Error> {
     println!("Got event: {}", event.name());
     match event {
-        Event::Message { new_message } => handle_message(new_message),
+        // Event::Message { new_message } => handle_message(ctx, new_message).await?,
         Event::ReactionAdd { add_reaction } => handle_add_reaction(ctx, add_reaction).await?,
         Event::ReactionRemove { removed_reaction } => {
             handle_remove_reaction(ctx, removed_reaction).await?
@@ -22,9 +22,9 @@ pub async fn my_event_handler(ctx: &Context, event: &Event<'_>) -> Result<(), Er
     Ok(())
 }
 
-fn handle_message(msg: &Message) {
-    // println!("Someone posted: {:?}", msg);
-}
+// async fn handle_message(ctx: &Context, msg: &Message) -> Result<(), Error> {
+//     Ok(())
+// }
 
 async fn handle_add_reaction(ctx: &Context, reaction: &Reaction) -> Result<(), Error> {
     if reaction.user_id.unwrap() != ctx.cache.current_user_id() {
