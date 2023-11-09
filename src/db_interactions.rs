@@ -12,7 +12,7 @@ pub static DB: Lazy<Surreal<Client>> = Lazy::new(Surreal::init);
 
 /// Set up the connection to the surreal db server
 pub async fn initiate_db() -> surrealdb::Result<()> {
-    DB.connect::<Ws>("localhost:8000").await?;
+    DB.connect::<Ws>("surreal:8000").await?;
     warn!("Connected to DB at localhost:8000");
 
     let dbuser = std::env::var("SURREAL_USER").expect("missing SURREAL_USER");
