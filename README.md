@@ -1,5 +1,5 @@
 # Complete GrammarBot rewrite
-A project to finally rewrite GrammarBot. Switching everything over to slash commands and changing to another db (probably will end up being surrealdb).
+A project to finally rewrite GrammarBot. Switching everything over to slash commands and changing to another db. Namely [SurrealDB](https://surrealdb.com/).
 
 The framework used for the rewrite will be [poise](https://github.com/serenity-rs/poise/), which is a framework for Discord's API. Poise is built on top of [serenity](https://github.com/serenity-rs/serenity)
 
@@ -10,6 +10,15 @@ In its current state, the bot can:
 * interact with a surrealdb instance in a basic way
 * create tags, show tags and delete tags (which are basically pre-written messages)
 * create embeds
+
+## Deployment
+Currently you just compile the bot and run a surrealdb instance. There are **3 ENV variables** you need to set:
+
+* SURREAL_USER
+* SURREAL_PASS
+* DISCORD_TOKEN
+
+Then you can just run `surreal start memory/file:data.db` and `cargo run --release` to get the bot working. Of course you need to have rust installed.
 
 ### Tags
 The bot can store and display pre-written messages. They can be at most as long as the message character limit and the names of the tags must be unique.
@@ -38,9 +47,9 @@ The commands to set up this functionality require the `ADMINISTRATOR` perm.
     - [X] Tags
     - [X] Points
     - [X] Roles
-    - [ ] User stats
+    - [X] User stats
     - [ ] Twitch/YT stuff
-    - [ ] Custom Help command
+    - [X] Custom Help command
 
 ## Requirments
 This bot relies on a running [SurrealDB](https://surrealdb.com/) server. The credentials for the server need to be in the env vars `SURREAL_USER` and `SURREAL_PASS`.
