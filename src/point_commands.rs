@@ -116,11 +116,11 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
                 user_data.chunks(20).map(|chunk| chunk.to_vec()).collect();
 
             let mut embeds: Vec<CreateEmbed> = Vec::with_capacity(sliced_data.len());
-            for slice in sliced_data.iter() {
+            for (idx_chunk, slice) in sliced_data.iter().enumerate() {
                 let mut fields: Vec<(String, String, bool)> = Vec::with_capacity(slice.len());
-                for (idx, user) in slice.iter().enumerate() {
+                for (idx_user, user) in slice.iter().enumerate() {
                     let field = (
-                        format!("**Rank {}**", idx*20 + 1),
+                        format!("**Rank {}**", idx_chunk*20 + idx_user + 1),
                         format!("{}: {}", user.discord_user.name, match user.grammarpoints {
                             1 => String::from("**1** Point"),
                             _ => format!("**{}** Points", user.grammarpoints),
