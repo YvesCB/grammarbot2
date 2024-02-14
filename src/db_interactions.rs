@@ -170,6 +170,15 @@ pub async fn remove_role(role: UserRole, guildid: Option<GuildId>) -> Result<Use
     }
 }
 
+/// Remove all roles from the db
+pub async fn remove_all_roles(guildid: Option<GuildId>) -> Result<Vec<UserRole>, DBIError> {
+    setdb(&guildid).await?;
+
+    let roles: Vec<UserRole> = DB.delete(constants::DB_ROLES).await?;
+
+    Ok(roles)
+}
+
 /// Returns the currently set role message. Returns None if no message is set
 pub async fn get_role_message(guildid: Option<GuildId>) -> Result<Option<RoleMessage>, DBIError> {
     setdb(&guildid).await?;

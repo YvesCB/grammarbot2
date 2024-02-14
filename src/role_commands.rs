@@ -93,6 +93,32 @@ pub async fn remove_role(
     Ok(())
 }
 
+/// Resets all the roles
+///
+/// This command removes all the roles from the role message this is mostly for the
+/// purpose of getting rid of roles that have already been deleted from the server.
+#[poise::command(
+    slash_command,
+    required_permissions = "MANAGE_ROLES",
+    category = "Roles",
+    rename = "reset",
+    guild_only
+)]
+pub async fn reset_roles(ctx: Context<'_>) -> Result<(), Error> {
+    let removed_roles = dbi::remove_all_roles(ctx.guild_id()).await?;
+    let removed_roles: String = removed_roles
+        .iter()
+        .map(|r| r.guild_role.name.to_owned())
+        .collect::<Vec<String>>()
+        .join(" ");
+
+    if removed_roles.len() > 0 {
+        ctx.say(removed_roles).await?;
+    }
+
+    Ok(())
+}
+
 /// Sets the text for the role selection message
 ///
 /// With this command the text shown in the role selection message can be set. This text will then
