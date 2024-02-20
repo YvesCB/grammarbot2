@@ -2,19 +2,17 @@ use crate::dbi;
 use crate::serenity::Context;
 use crate::types::*;
 use log::{error, warn};
-use poise::serenity_prelude::ReactionType;
-use poise::{
-    event::Event,
-    serenity_prelude::{Message, Reaction},
-};
+use poise::serenity_prelude as serenity;
 
-pub async fn my_event_handler(ctx: &Context, event: &Event<'_>) -> Result<(), Error> {
-    println!("Got event: {}", event.name());
+pub async fn my_event_handler(ctx: &Context, event: &serenity::Event) -> Result<(), Error> {
+    println!("Got event: {}", event.name().unwrap());
     match event {
         // Event::Message { new_message } => handle_message(ctx, new_message).await?,
-        Event::ReactionAdd { add_reaction } => handle_add_reaction(ctx, add_reaction).await?,
-        Event::ReactionRemove { removed_reaction } => {
-            handle_remove_reaction(ctx, removed_reaction).await?
+        serenity::Event::ReactionAdd(reaction) => {
+            handle_add_reaction(ctx, &reaction.reaction).await?
+        }
+        serenity::Event::ReactionRemove(reaction) => {
+            handle_remove_reaction(ctx, &reaction.reaction).await?
         }
         _ => {}
     };
@@ -26,8 +24,8 @@ pub async fn my_event_handler(ctx: &Context, event: &Event<'_>) -> Result<(), Er
 //     Ok(())
 // }
 
-async fn handle_add_reaction(ctx: &Context, reaction: &Reaction) -> Result<(), Error> {
-    if reaction.user_id.unwrap() != ctx.cache.current_user_id() {
+async fn handle_add_reaction(ctx: &Context, reaction: &serenity::Reaction) -> Result<(), Error> {
+    if reaction.user_id.unwrap() != ctx.cache.current_user().id {
         let cur_role_msg = dbi::get_role_message(reaction.guild_id).await?;
         let cur_point_emote = dbi::get_point_data(reaction.guild_id).await?;
         // we only handle role reactions if the messge exists in the first place
@@ -54,21 +52,14 @@ async fn handle_add_reaction(ctx: &Context, reaction: &Reaction) -> Result<(), E
             // we check if the id of the emote in the reaction matches the id of the emote saved to
             // the db
             (
-                Reaction {
-                    emoji: ReactionType::Custom { id, .. },
-                    message_id,
-                    channel_id,
+                serenity::Reaction {
+                    emoji: serenity::ReactionType::Custom { id, .. },
                     ..
                 },
                 _,
                 Some(cpe),
-            ) if cpe.guild_emote.id.0 == id.0 => {
-                let message_reacted_to = ctx
-                    .cache
-                    .guild_channel(channel_id)
-                    .unwrap()
-                    .message(ctx, message_id)
-                    .await?;
+            ) if cpe.guild_emote.id.get() == id.get() => {
+                let message_reacted_to = reaction.message(ctx).await?;
                 handle_add_point(&ctx, &reaction, message_reacted_to).await?;
             }
             _ => {}
@@ -78,8 +69,8 @@ async fn handle_add_reaction(ctx: &Context, reaction: &Reaction) -> Result<(), E
     Ok(())
 }
 
-async fn handle_remove_reaction(ctx: &Context, reaction: &Reaction) -> Result<(), Error> {
-    if reaction.user_id.unwrap() != ctx.cache.current_user_id() {
+async fn handle_remove_reaction(ctx: &Context, reaction: &serenity::Reaction) -> Result<(), Error> {
+    if reaction.user_id.unwrap() != ctx.cache.current_user().id {
         let cur_role_msg = dbi::get_role_message(reaction.guild_id).await?;
         let cur_point_emote = dbi::get_point_data(reaction.guild_id).await?;
         // we only handle role reactions if the messge exists in the first place
@@ -106,21 +97,14 @@ async fn handle_remove_reaction(ctx: &Context, reaction: &Reaction) -> Result<()
             // we check if the id of the emote in the reaction matches the id of the emote saved to
             // the db
             (
-                Reaction {
-                    emoji: ReactionType::Custom { id, .. },
-                    message_id,
-                    channel_id,
+                serenity::Reaction {
+                    emoji: serenity::ReactionType::Custom { id, .. },
                     ..
                 },
                 _,
                 Some(cpe),
-            ) if cpe.guild_emote.id.0 == id.0 => {
-                let message_reacted_to = ctx
-                    .cache
-                    .guild_channel(channel_id)
-                    .unwrap()
-                    .message(ctx, message_id)
-                    .await?;
+            ) if cpe.guild_emote.id.get() == id.get() => {
+                let message_reacted_to = reaction.message(ctx).await?;
                 handle_remove_point(&ctx, &reaction, message_reacted_to).await?;
             }
 
@@ -133,32 +117,38 @@ async fn handle_remove_reaction(ctx: &Context, reaction: &Reaction) -> Result<()
 
 async fn handle_add_role(
     ctx: &Context,
-    reaction: &Reaction,
+    reaction: &serenity::Reaction,
     cur_roles: Vec<UserRole>,
 ) -> Result<(), Error> {
-    if let ReactionType::Custom {
+    if let serenity::ReactionType::Custom {
         animated: _,
         id,
         name: _,
     } = &reaction.emoji
     {
-        if let Some(ur) = cur_roles.iter().filter(|ur| ur.emote.id.0 == id.0).next() {
-            if let Some(mut member) = ctx
+        if let Some(ur) = cur_roles
+            .iter()
+            .filter(|ur| ur.emote.id.get() == id.get())
+            .next()
+        {
+            if let Some(member) = ctx
                 .cache
                 .member(reaction.guild_id.unwrap(), reaction.user_id.unwrap())
             {
                 let _ = member.add_role(&ctx.http, ur.guild_role.id).await?;
                 warn!(
                     "In {}, events::handle_add_role: Added role {} to member {} with reaction.",
-                    reaction.guild_id.unwrap().0,
+                    reaction.guild_id.unwrap().get(),
                     ur.guild_role.name,
                     member.display_name()
                 );
                 let _ = member
                     .user
-                    .direct_message(&ctx, |m| {
-                        m.content(format!("The role {} was added to you.", ur.guild_role.name))
-                    })
+                    .direct_message(
+                        &ctx,
+                        serenity::CreateMessage::new()
+                            .content(format!("The role {} was added to you.", ur.guild_role.name)),
+                    )
                     .await;
             };
         };
@@ -169,35 +159,40 @@ async fn handle_add_role(
 
 async fn handle_remove_role(
     ctx: &Context,
-    reaction: &Reaction,
+    reaction: &serenity::Reaction,
     cur_roles: Vec<UserRole>,
 ) -> Result<(), Error> {
-    if let ReactionType::Custom {
+    if let serenity::ReactionType::Custom {
         animated: _,
         id,
         name: _,
     } = &reaction.emoji
     {
-        if let Some(ur) = cur_roles.iter().filter(|ur| ur.emote.id.0 == id.0).next() {
-            if let Some(mut member) = ctx
+        if let Some(ur) = cur_roles
+            .iter()
+            .filter(|ur| ur.emote.id.get() == id.get())
+            .next()
+        {
+            if let Some(member) = ctx
                 .cache
                 .member(reaction.guild_id.unwrap(), reaction.user_id.unwrap())
             {
                 let _ = member.remove_role(&ctx.http, ur.guild_role.id).await?;
                 warn!(
                     "In {}, events::handle_remove_role: Removed role {} from member {} with reaction.",
-                    reaction.guild_id.unwrap().0,
+                    reaction.guild_id.unwrap().get(),
                     ur.guild_role.name,
                     member.display_name()
                 );
                 let _ = member
                     .user
-                    .direct_message(&ctx, |m| {
-                        m.content(format!(
+                    .direct_message(
+                        &ctx,
+                        serenity::CreateMessage::new().content(format!(
                             "The role {} was removed from you.",
                             ur.guild_role.name
-                        ))
-                    })
+                        )),
+                    )
                     .await;
             };
         };
@@ -208,29 +203,34 @@ async fn handle_remove_role(
 
 async fn handle_add_point(
     ctx: &Context,
-    reaction: &Reaction,
-    message: Message,
+    reaction: &serenity::Reaction,
+    message: serenity::Message,
 ) -> Result<(), Error> {
-    let user = ctx.cache.user(reaction.user_id.unwrap());
+    let user = reaction.user(ctx).await;
     match user {
-        Some(u) if u.id.0 != message.author.id.0 => {
-            if let Some(author) = ctx.cache.user(message.author.id) {
+        Ok(u) if u.id.get() != message.author.id.get() => {
+            if let Ok(author) = reaction
+                .guild_id
+                .unwrap()
+                .member(ctx, message.author.id)
+                .await
+            {
                 let new_user_state =
-                    dbi::change_user_points(reaction.guild_id, author, |p| p + 1).await?;
+                    dbi::change_user_points(reaction.guild_id, author.user, |p| p + 1).await?;
                 warn!(
                     "In {}, events::handle_add_point: Added point to {}, new balance {}.",
-                    reaction.guild_id.unwrap().0,
+                    reaction.guild_id.unwrap().get(),
                     new_user_state.discord_user.name,
                     new_user_state.grammarpoints
                 );
             } else {
-                error!("In {}, events::handle_add_point: Attempted to add point to user that is no longer member.", reaction.guild_id.unwrap().0);
+                error!("In {}, events::handle_add_point: Attempted to add point to user that is no longer member.", reaction.guild_id.unwrap().get());
             };
         }
-        None => {
+        Err(_) => {
             error!(
                 "In {}, events::handle_add_point: Could not get User struct from reaction.",
-                reaction.guild_id.unwrap().0
+                reaction.guild_id.unwrap().get()
             );
         }
         _ => {}
@@ -241,29 +241,34 @@ async fn handle_add_point(
 
 async fn handle_remove_point(
     ctx: &Context,
-    reaction: &Reaction,
-    message: Message,
+    reaction: &serenity::Reaction,
+    message: serenity::Message,
 ) -> Result<(), Error> {
-    let user = ctx.cache.user(reaction.user_id.unwrap());
+    let user = reaction.user(ctx).await;
     match user {
-        Some(u) if u.id.0 != message.author.id.0 => {
-            if let Some(author) = ctx.cache.user(message.author.id) {
+        Ok(u) if u.id.get() != message.author.id.get() => {
+            if let Ok(author) = reaction
+                .guild_id
+                .unwrap()
+                .member(ctx, message.author.id)
+                .await
+            {
                 let new_user_state =
-                    dbi::change_user_points(reaction.guild_id, author, |p| p - 1).await?;
+                    dbi::change_user_points(reaction.guild_id, author.user, |p| p - 1).await?;
                 warn!(
                     "In {}, events::handle_add_point: Removed point from {}, new balance {}.",
-                    reaction.guild_id.unwrap().0,
+                    reaction.guild_id.unwrap().get(),
                     new_user_state.discord_user.name,
                     new_user_state.grammarpoints
                 );
             } else {
-                error!("In {}, events::handle_remove_point: Attempted to add point to user that is no longer member.", reaction.guild_id.unwrap().0);
+                error!("In {}, events::handle_remove_point: Attempted to add point to user that is no longer member.", reaction.guild_id.unwrap().get());
             };
         }
-        None => {
+        Err(_) => {
             error!(
                 "In {}, events::handle_add_point: Could not get User struct from reaction.",
-                reaction.guild_id.unwrap().0
+                reaction.guild_id.unwrap().get()
             );
         }
         _ => {}
