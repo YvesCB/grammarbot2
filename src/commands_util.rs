@@ -1,3 +1,4 @@
+use poise::serenity_prelude as serenity;
 use poise::serenity_prelude::Colour;
 use poise::serenity_prelude::CreateEmbed;
 use poise::Command;
@@ -133,30 +134,29 @@ pub async fn help(
                 .filter(|com| com.qualified_name == c)
                 .next()
             {
-                ctx.send(|b| {
-                    b.embed(|e| {
-                        e.title(format!(
-                            "Help for: /{} {}",
-                            &bot_command.qualified_name,
-                            get_param_string(bot_command)
-                        ))
-                        .description(match bot_command.help_text {
-                            Some(t) => t().replace("\n", " "),
-                            None => String::from("-"),
-                        })
-                        .field("Parameters", get_detailed_param_string(bot_command), false)
-                        .field("Guild only", format!("{}", &bot_command.guild_only), true)
-                        .field("Required Perms", bot_command.required_permissions, true)
-                        .colour(Colour::BLUE)
-                        .footer(|f| {
-                            f.text(format!(
-                                "Optional parameters marked with *. Requsted by {}.",
-                                ctx.author().name
-                            ))
-                        })
+                let embed = serenity::CreateEmbed::new()
+                    .title(format!(
+                        "Help for: /{} {}",
+                        &bot_command.qualified_name,
+                        get_param_string(bot_command)
+                    ))
+                    .description(match &bot_command.help_text {
+                        Some(t) => t.replace("\n", " "),
+                        None => String::from("-"),
                     })
-                })
-                .await?;
+                    .field("Parameters", get_detailed_param_string(bot_command), false)
+                    .field("Guild only", format!("{}", &bot_command.guild_only), true)
+                    .field(
+                        "Required Perms",
+                        bot_command.required_permissions.to_string(),
+                        true,
+                    )
+                    .colour(Colour::BLUE)
+                    .footer(serenity::CreateEmbedFooter::new(format!(
+                        "Optional parameters marked with *. Requsted by {}.",
+                        ctx.author().name
+                    )));
+                ctx.send(poise::CreateReply::default().embed(embed)).await?;
             } else {
                 ctx.say(format!("{} is not a recognized command.", c))
                     .await?;
@@ -176,8 +176,8 @@ pub async fn help(
                         idx + 1,
                         &commands.len()
                     ))
-                    .description(match command.help_text {
-                        Some(t) => t().replace("\n", " "),
+                    .description(match &command.help_text {
+                        Some(t) => t.replace("\n", " "),
                         None => String::from("-"),
                     })
                     .fields(
@@ -201,12 +201,10 @@ pub async fn help(
                             .collect::<Vec<(String, String, bool)>>(),
                     )
                     .colour(Colour::BLUE)
-                    .footer(|f| {
-                        f.text(format!(
-                            "Optional parameters marked with *. Requsted by {}.",
-                            ctx.author().name
-                        ))
-                    })
+                    .footer(serenity::CreateEmbedFooter::new(format!(
+                        "Optional parameters marked with *. Requsted by {}.",
+                        ctx.author().name
+                    )))
                     .to_owned();
 
                 embeds.push(embed);

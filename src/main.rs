@@ -2,7 +2,6 @@ use db_interactions as dbi;
 use poise::serenity_prelude as serenity;
 
 use log4rs;
-use serenity::GatewayIntents;
 
 use events::my_event_handler;
 use types::*;
@@ -26,6 +25,9 @@ async fn main() {
     dbi::initiate_db().await.expect("couldn't initiate DB");
 
     let data: Data = Data {};
+    let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
+    let intents =
+        serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::privileged();
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![
@@ -49,14 +51,17 @@ async fn main() {
             },
             ..Default::default()
         })
-        .token(std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN"))
-        .intents(GatewayIntents::non_privileged() | GatewayIntents::privileged())
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(data)
             })
-        });
+        })
+        .build();
 
-    framework.run().await.unwrap();
+    let client = serenity::ClientBuilder::new(token, intents)
+        .framework(framework)
+        .await;
+
+    client.unwrap().start().await.unwrap();
 }

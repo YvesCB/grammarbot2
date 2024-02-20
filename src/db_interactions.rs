@@ -39,7 +39,7 @@ pub async fn initiate_db() -> surrealdb::Result<()> {
 
 async fn setdb(guildid: &Option<GuildId>) -> Result<(), DBIError> {
     let dbname = match guildid {
-        Some(id) => id.0.to_string(),
+        Some(id) => id.get().to_string(),
         None => "global".to_string(),
     };
     DB.use_ns(constants::DB_NS).use_db(&dbname).await?;
@@ -97,7 +97,7 @@ pub async fn remove_tag(tagname: &str, guildid: Option<GuildId>) -> Result<Tag, 
         Some(t) => {
             warn!(
                 "In {}, db_interaction::remove_tag: removed Tag: {:?}",
-                &guildid.unwrap().0,
+                &guildid.unwrap().get(),
                 &t
             );
             Ok(t)
@@ -128,7 +128,7 @@ pub async fn add_role(role: UserRole, guildid: Option<GuildId>) -> Result<UserRo
         Some(ur) => {
             warn!(
                 "In {}, db_interaction::add_role: added UserRole: {:?}",
-                &guildid.unwrap().0,
+                &guildid.unwrap().get(),
                 &ur
             );
             Ok(ur)
@@ -161,7 +161,7 @@ pub async fn remove_role(role: UserRole, guildid: Option<GuildId>) -> Result<Use
         Some(ur) => {
             warn!(
                 "In {}, db_interaction::remove_role: removed UserRole: {:?}",
-                guildid.unwrap().0,
+                guildid.unwrap().get(),
                 &ur
             );
             Ok(ur)
@@ -208,7 +208,7 @@ pub async fn set_role_message(
                 .await?;
             warn!(
                 "In {}, db_interaction::set_role_message: changed role message from \"{}\" to \"{}\"",
-                guildid.unwrap().0,
+                guildid.unwrap().get(),
                 &cur_msg.messagetext,
                 &msg
             );
@@ -226,7 +226,7 @@ pub async fn set_role_message(
                 .await?;
             warn!(
                 "In {}, db_interactions::set_role_message: created role message \"{}\"",
-                guildid.unwrap().0,
+                guildid.unwrap().get(),
                 &msg
             );
         }
@@ -377,7 +377,7 @@ pub async fn set_point_emote(
                 .await?;
             warn!(
                 "In {}, db_interaction::set_point_emote: changed point emote from {} to {}",
-                guildid.unwrap().0,
+                guildid.unwrap().get(),
                 &p.guild_emote.name,
                 &point_emote.name
             );
@@ -394,7 +394,7 @@ pub async fn set_point_emote(
                 .await?;
             warn!(
                 "In {}, db_interactions::set_point_emote: created point emote \"{}\"",
-                guildid.unwrap().0,
+                guildid.unwrap().get(),
                 &point_emote.name
             );
         }

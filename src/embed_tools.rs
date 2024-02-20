@@ -1,4 +1,6 @@
-use poise::serenity_prelude as serenity;
+use std::time::Duration;
+
+use poise::serenity_prelude::{self as serenity, futures::StreamExt};
 
 use crate::types::*;
 
@@ -12,29 +14,29 @@ async fn paginage_generic(
     let next_button_id = format!("{}next", ctx_id);
 
     let mut page = 0;
-    let last_page = match texts_embeds {
+    let last_page = match &texts_embeds {
         (Some(texts), None) => texts.len() == page,
         (None, Some(embeds)) => embeds.len() == page,
         _ => false,
     };
 
     let components = serenity::CreateActionRow::Buttons(vec![
-        serenity::CreateButton::new(prev_button_id)
+        serenity::CreateButton::new(&prev_button_id)
             .style(serenity::ButtonStyle::Primary)
             .emoji('◀')
             .disabled(true),
-        serenity::CreateButton::new(next_button_id)
+        serenity::CreateButton::new(&next_button_id)
             .style(serenity::ButtonStyle::Primary)
             .emoji('▶')
-            .disabled(page == last_page),
+            .disabled(last_page.to_owned()),
     ]);
-    let builder = match texts_embeds {
+    let builder = match &texts_embeds {
         (Some(texts), None) => poise::CreateReply::default()
-            .content(texts[page])
-            .components(components),
+            .content(texts[page].to_owned())
+            .components(vec![components]),
         (None, Some(embeds)) => poise::CreateReply::default()
-            .embed(embeds[page])
-            .components(components),
+            .embed(embeds[page].to_owned())
+            .components(vec![components]),
         _ => poise::CreateReply::default(),
     };
 
@@ -46,18 +48,10 @@ async fn paginage_generic(
         .await_component_interaction(ctx)
         .author_id(ctx.author().id)
         .custom_ids(vec![prev_button_id, next_button_id])
-        .timeout(60)
-        .stream()
-        .await;
+        .timeout(Duration::from_secs(300));
 
-    while let Some(interaction) = interactions.poll_next() {
-        let pressed_button_id = match &interaction {
-            Some(m) => &m.data.custom_id,
-            None => {
-                ctx.say("Didn't interact in time.").await?;
-                return Ok(());
-            }
-        };
+    while let Some(interaction) = interactions.next().await {
+        let pressed_button_id = interaction.data.custom_id;
         match pressed_button_id {
             prev_button_id => {
                 page -= 1;
@@ -74,33 +68,38 @@ async fn paginage_generic(
                 let edit_builder = match texts_embeds {
                     (Some(texts), None) => poise::CreateReply::default()
                         .content(texts[page])
-                        .components(components),
+                        .components(vec![components]),
                     (None, Some(embeds)) => poise::CreateReply::default()
                         .embed(embeds[page])
-                        .components(components),
+                        .components(vec![components]),
                     _ => poise::CreateReply::default(),
                 };
                 reply.edit(ctx, builder).await?;
             }
             next_button_id => {
                 page += 1;
-                let disable_next = page == last_page;
+                let last_page = match texts_embeds {
+                    (Some(texts), None) => texts.len() == page,
+                    (None, Some(embeds)) => embeds.len() == page,
+                    _ => false,
+                };
+                let disable_next = last_page;
                 let edit_components = serenity::CreateActionRow::Buttons(vec![
-                    serenity::CreateButton::new(prev_button_id)
+                    serenity::CreateButton::new(&prev_button_id)
                         .style(serenity::ButtonStyle::Primary)
                         .emoji('◀'),
-                    serenity::CreateButton::new(next_button_id)
+                    serenity::CreateButton::new(&next_button_id)
                         .style(serenity::ButtonStyle::Primary)
                         .emoji('▶')
-                        .disable(disable_next),
+                        .disabled(disable_next),
                 ]);
                 let edit_builder = match texts_embeds {
                     (Some(texts), None) => poise::CreateReply::default()
                         .content(texts[page])
-                        .components(components),
+                        .components(vec![components]),
                     (None, Some(embeds)) => poise::CreateReply::default()
                         .embed(embeds[page])
-                        .components(components),
+                        .components(vec![components]),
                     _ => poise::CreateReply::default(),
                 };
                 reply.edit(ctx, builder).await?;

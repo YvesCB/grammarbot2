@@ -4,15 +4,15 @@ use crate::types::*;
 use log::{error, warn};
 use poise::serenity_prelude as serenity;
 
-pub async fn my_event_handler(ctx: &Context, event: &serenity::Event) -> Result<(), Error> {
-    println!("Got event: {}", event.name().unwrap());
+pub async fn my_event_handler(ctx: &Context, event: &serenity::FullEvent) -> Result<(), Error> {
+    // println!("Got event: {}", event.name().unwrap());
     match event {
         // Event::Message { new_message } => handle_message(ctx, new_message).await?,
-        serenity::Event::ReactionAdd(reaction) => {
-            handle_add_reaction(ctx, &reaction.reaction).await?
+        serenity::FullEvent::ReactionAdd { add_reaction } => {
+            handle_add_reaction(ctx, &add_reaction).await?
         }
-        serenity::Event::ReactionRemove(reaction) => {
-            handle_remove_reaction(ctx, &reaction.reaction).await?
+        serenity::FullEvent::ReactionRemove { removed_reaction } => {
+            handle_remove_reaction(ctx, &removed_reaction).await?
         }
         _ => {}
     };
