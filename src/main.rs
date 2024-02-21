@@ -43,12 +43,7 @@ async fn main() {
                 prefix: Some(constants::BOT_PREFIX.into()),
                 ..Default::default()
             },
-            event_handler: |ctx, event, _framework, _data| {
-                Box::pin(async move {
-                    my_event_handler(ctx, event).await?;
-                    Ok(())
-                })
-            },
+            event_handler: |ctx, event, _framework, _data| Box::pin(my_event_handler(ctx, event)),
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {

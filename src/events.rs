@@ -2,7 +2,7 @@ use crate::dbi;
 use crate::serenity::Context;
 use crate::types::*;
 use log::{error, warn};
-use poise::serenity_prelude as serenity;
+use poise::serenity_prelude::{self as serenity, CacheHttp};
 
 pub async fn my_event_handler(ctx: &Context, event: &serenity::FullEvent) -> Result<(), Error> {
     // println!("Got event: {}", event.name().unwrap());
@@ -131,9 +131,11 @@ async fn handle_add_role(
             .filter(|ur| ur.emote.id.get() == id.get())
             .next()
         {
-            if let Some(member) = ctx
-                .cache
-                .member(reaction.guild_id.unwrap(), reaction.user_id.unwrap())
+            if let Ok(member) = reaction
+                .guild_id
+                .unwrap()
+                .member(ctx.http(), reaction.user_id.unwrap())
+                .await
             {
                 let _ = member.add_role(&ctx.http, ur.guild_role.id).await?;
                 warn!(
@@ -173,9 +175,11 @@ async fn handle_remove_role(
             .filter(|ur| ur.emote.id.get() == id.get())
             .next()
         {
-            if let Some(member) = ctx
-                .cache
-                .member(reaction.guild_id.unwrap(), reaction.user_id.unwrap())
+            if let Ok(member) = reaction
+                .guild_id
+                .unwrap()
+                .member(ctx.http(), reaction.user_id.unwrap())
+                .await
             {
                 let _ = member.remove_role(&ctx.http, ur.guild_role.id).await?;
                 warn!(

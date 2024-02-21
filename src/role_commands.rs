@@ -187,14 +187,13 @@ pub async fn show_msg_role(ctx: Context<'_>) -> Result<(), Error> {
                             serenity::CreateEmbedFooter::new(format!(
                                 "Requested by: {}",
                                 ctx.author().name
-                            ))
-                            .icon_url(
-                                ctx.serenity_context()
-                                    .cache
-                                    .current_user()
-                                    .avatar_url()
-                                    .unwrap(),
-                            ),
+                            )), // .icon_url(
+                                //     ctx.serenity_context()
+                                //         .cache
+                                //         .current_user()
+                                //         .avatar_url()
+                                //         .unwrap(),
+                                // ),
                         ),
                 ),
             )

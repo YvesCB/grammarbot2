@@ -55,14 +55,13 @@ pub async fn user_info(
                             serenity::CreateEmbedFooter::new(format!(
                                 "Requested by: {}",
                                 ctx.author().name
-                            ))
-                            .icon_url(
-                                ctx.serenity_context()
-                                    .cache
-                                    .current_user()
-                                    .avatar_url()
-                                    .unwrap(),
-                            ),
+                            )), // .icon_url(
+                                //     ctx.serenity_context()
+                                //         .cache
+                                //         .current_user()
+                                //         .avatar_url()
+                                //         .unwrap(),
+                                // ),
                         ),
                 ),
             )
@@ -103,14 +102,13 @@ pub async fn user_info(
                             serenity::CreateEmbedFooter::new(format!(
                                 "Requested by: {}",
                                 ctx.author().name
-                            ))
-                            .icon_url(
-                                ctx.serenity_context()
-                                    .cache
-                                    .current_user()
-                                    .avatar_url()
-                                    .unwrap(),
-                            ),
+                            )), // .icon_url(
+                                //     ctx.serenity_context()
+                                //         .cache
+                                //         .current_user()
+                                //         .avatar_url()
+                                //         .unwrap(),
+                                // ),
                         ),
                 ),
             )

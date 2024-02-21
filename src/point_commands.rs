@@ -58,13 +58,10 @@ pub async fn emote_stats(ctx: Context<'_>) -> Result<(), Error> {
                 .field("Total points scored", pointsdata.total.to_string(), false)
                 .colour(serenity::Colour::BLUE)
                 .footer(serenity::CreateEmbedFooter::new(format!("Requested by: {}", ctx.author().name))
-                    .icon_url(
-                        ctx.serenity_context()
-                            .cache
-                            .current_user()
-                            .avatar_url()
-                            .unwrap(),
-                    ))
+                    // .icon_url(
+                    //     ctx.cache().current_user().avatar_url().unwrap()
+                    // )
+                )
             )).await?;
         }
         None => {

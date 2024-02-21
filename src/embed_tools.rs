@@ -1,8 +1,7 @@
 use std::time::Duration;
 
-use poise::serenity_prelude::{self as serenity, futures::StreamExt};
-
 use crate::types::*;
+use poise::serenity_prelude as serenity;
 
 async fn paginage_generic(
     ctx: Context<'_>,
@@ -40,7 +39,7 @@ async fn paginage_generic(
         _ => poise::CreateReply::default(),
     };
 
-    let reply = ctx.send(builder.clone()).await?;
+    let reply = ctx.send(builder).await?;
 
     let interactions = reply
         .message()
@@ -50,7 +49,7 @@ async fn paginage_generic(
         .custom_ids(vec![prev_button_id.to_owned(), next_button_id.to_owned()])
         .timeout(Duration::from_secs(300));
 
-    while let Some(interaction) = interactions.next().await {
+    if let Some(interaction) = interactions.await {
         if interaction.data.custom_id == prev_button_id {
             page -= 1;
             let disable_prev = page == 0;
@@ -113,9 +112,13 @@ pub async fn paginate_with_embeds(
 ) -> Result<(), Error> {
     // Define some unique identifiers for the navigation buttons
     paginage_generic(ctx, (None, Some(embeds))).await?;
+
+    Ok(())
 }
 
 #[allow(dead_code)]
 pub async fn paginate_with_text(ctx: Context<'_>, texts: Vec<String>) -> Result<(), Error> {
     paginage_generic(ctx, (Some(texts), None)).await?;
+
+    Ok(())
 }
