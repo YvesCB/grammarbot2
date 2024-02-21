@@ -1,8 +1,7 @@
 use crate::constants;
 use crate::dbi;
 use crate::types::*;
-use poise::serenity_prelude::Colour;
-use poise::serenity_prelude::Member;
+use poise::serenity_prelude as serenity;
 
 /// Parent command for the User category
 ///
@@ -19,12 +18,12 @@ pub async fn user(_ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(category = "User", slash_command, guild_only)]
 pub async fn user_info(
     ctx: Context<'_>,
-    #[description = "User to get info about"] user: Option<Member>,
+    #[description = "User to get info about"] user: Option<serenity::Member>,
 ) -> Result<(), Error> {
     match user {
         Some(m) => {
             let mut points: u32 = 0;
-            let myuser = dbi::get_user_data(ctx.guild_id(), m.user.id.0).await;
+            let myuser = dbi::get_user_data(ctx.guild_id(), m.user.id.get()).await;
             if let Ok(mu) = myuser {
                 points = mu.grammarpoints;
             }
@@ -42,33 +41,37 @@ pub async fn user_info(
                 ),
                 ("Points", points.to_string(), false),
             ];
-            ctx.send(|f| {
-                f.embed(|f| {
-                    f.title(&m.user.name)
+            ctx.send(
+                poise::CreateReply::default().embed(
+                    serenity::CreateEmbed::default()
+                        .title(&m.user.name)
                         .thumbnail(match &m.user.avatar_url() {
                             Some(url) => url,
                             None => constants::DEFAULT_AVATAR,
                         })
                         .fields(fields.into_iter())
-                        .colour(Colour::BLUE)
-                        .footer(|f| {
-                            f.text(format!("Requested by: {}", ctx.author().name))
-                                .icon_url(
-                                    ctx.serenity_context()
-                                        .cache
-                                        .current_user()
-                                        .avatar_url()
-                                        .unwrap(),
-                                )
-                        })
-                })
-            })
+                        .colour(serenity::Colour::BLUE)
+                        .footer(
+                            serenity::CreateEmbedFooter::new(format!(
+                                "Requested by: {}",
+                                ctx.author().name
+                            ))
+                            .icon_url(
+                                ctx.serenity_context()
+                                    .cache
+                                    .current_user()
+                                    .avatar_url()
+                                    .unwrap(),
+                            ),
+                        ),
+                ),
+            )
             .await?;
         }
         None => {
             let m = ctx.author_member().await.unwrap();
             let mut points: u32 = 0;
-            let myuser = dbi::get_user_data(ctx.guild_id(), m.user.id.0).await;
+            let myuser = dbi::get_user_data(ctx.guild_id(), m.user.id.get()).await;
             if let Ok(mu) = myuser {
                 points = mu.grammarpoints;
             }
@@ -86,27 +89,31 @@ pub async fn user_info(
                 ),
                 ("Points", points.to_string(), false),
             ];
-            ctx.send(|f| {
-                f.embed(|f| {
-                    f.title(&m.user.name)
+            ctx.send(
+                poise::CreateReply::default().embed(
+                    serenity::CreateEmbed::default()
+                        .title(&m.user.name)
                         .thumbnail(match &m.user.avatar_url() {
                             Some(url) => url,
                             None => constants::DEFAULT_AVATAR,
                         })
                         .fields(fields.into_iter())
-                        .colour(Colour::BLUE)
-                        .footer(|f| {
-                            f.text(format!("Requested by: {}", ctx.author().name))
-                                .icon_url(
-                                    ctx.serenity_context()
-                                        .cache
-                                        .current_user()
-                                        .avatar_url()
-                                        .unwrap(),
-                                )
-                        })
-                })
-            })
+                        .colour(serenity::Colour::BLUE)
+                        .footer(
+                            serenity::CreateEmbedFooter::new(format!(
+                                "Requested by: {}",
+                                ctx.author().name
+                            ))
+                            .icon_url(
+                                ctx.serenity_context()
+                                    .cache
+                                    .current_user()
+                                    .avatar_url()
+                                    .unwrap(),
+                            ),
+                        ),
+                ),
+            )
             .await?;
         }
     }

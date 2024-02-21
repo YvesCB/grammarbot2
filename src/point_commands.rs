@@ -1,17 +1,13 @@
 use crate::dbi;
 use crate::embed_tools::paginate_with_embeds;
 use crate::types::*;
-use poise::serenity_prelude::CreateEmbed;
-use poise::serenity_prelude::{Colour, Emoji};
+use poise::serenity_prelude as serenity;
 
 /// Grammarpoint parent command
 ///
 /// Commands for administering points on this server. This allows for setting or changing the point
 /// emote as a admin or just checking the leader board among other things.
-#[poise::command(
-    slash_command,
-    subcommands("emote_set", "emote_stats", "leaderboard")
-)]
+#[poise::command(slash_command, subcommands("emote_set", "emote_stats", "leaderboard"))]
 pub async fn points(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
@@ -29,7 +25,7 @@ pub async fn points(_ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn emote_set(
     ctx: Context<'_>,
-    #[description = "Guild Emote to use as point emote"] emote: Emoji,
+    #[description = "Guild Emote to use as point emote"] emote: serenity::Emoji,
 ) -> Result<(), Error> {
     dbi::set_point_emote(&emote, ctx.author(), ctx.guild_id()).await?;
 
@@ -54,26 +50,22 @@ pub async fn emote_stats(ctx: Context<'_>) -> Result<(), Error> {
 
     match cur_points {
         Some(pointsdata) => {
-            ctx.send(|f| {
-                f.embed(|e| {
-                    e.title("Points system info")
-                        .description("Points can be given to users by other users by reacting to their messages with the point emote.")
-                        .field("Point emote", pointsdata.guild_emote, false)
-                        .field("Active", pointsdata.active, false)
-                        .field("Total points scored", pointsdata.total, false)
-                        .colour(Colour::BLUE)
-                        .footer(|f| {
-                            f.text(format!("Requested by: {}", ctx.author().name))
-                                .icon_url(
-                                    ctx.serenity_context()
-                                        .cache
-                                        .current_user()
-                                        .avatar_url()
-                                        .unwrap(),
-                                )
-                        })
-                })
-            }).await?;
+            ctx.send(poise::CreateReply::default().embed(serenity::CreateEmbed::default()
+                .title("Points system info")
+                .description("Points can be given to users by other users by reacting to their messages with the point emote.")
+                .field("Point emote", pointsdata.guild_emote.to_string(), false)
+                .field("Active", pointsdata.active.to_string(), false)
+                .field("Total points scored", pointsdata.total.to_string(), false)
+                .colour(serenity::Colour::BLUE)
+                .footer(serenity::CreateEmbedFooter::new(format!("Requested by: {}", ctx.author().name))
+                    .icon_url(
+                        ctx.serenity_context()
+                            .cache
+                            .current_user()
+                            .avatar_url()
+                            .unwrap(),
+                    ))
+            )).await?;
         }
         None => {
             ctx.say("You need to chose a emote to use to collect points by using the `/points emote_set` command.").await?;
@@ -86,12 +78,7 @@ pub async fn emote_stats(ctx: Context<'_>) -> Result<(), Error> {
 /// Show the leader board for points on the server
 ///
 /// Use this command to show the leader boards for the points on this server.
-#[poise::command(
-    slash_command,
-    category = "Points",
-    guild_only,
-    rename = "leaderboard"
-)]
+#[poise::command(slash_command, category = "Points", guild_only, rename = "leaderboard")]
 pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let point_data = dbi::get_point_data(ctx.guild_id()).await?;
     let mut user_data = dbi::get_all_user_data(ctx.guild_id()).await?;
@@ -107,40 +94,45 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
 
             let command_user_position = match user_data
                 .iter()
-                .position(|u| u.discord_user.id.0 == command_user.id.0) {
-                    Some(i) => Some((i, &user_data[i])),
-                    None => None,
-                };
+                .position(|u| u.discord_user.id.get() == command_user.id.get())
+            {
+                Some(i) => Some((i, &user_data[i])),
+                None => None,
+            };
 
             let sliced_data: Vec<Vec<MyUser>> =
                 user_data.chunks(20).map(|chunk| chunk.to_vec()).collect();
 
-            let mut embeds: Vec<CreateEmbed> = Vec::with_capacity(sliced_data.len());
+            let mut embeds: Vec<serenity::CreateEmbed> = Vec::with_capacity(sliced_data.len());
             for (idx_chunk, slice) in sliced_data.iter().enumerate() {
                 let mut fields: Vec<(String, String, bool)> = Vec::with_capacity(slice.len());
                 for (idx_user, user) in slice.iter().enumerate() {
                     let field = (
-                        format!("**Rank {}**", idx_chunk*20 + idx_user + 1),
-                        format!("{}: {}", user.discord_user.name, match user.grammarpoints {
-                            1 => String::from("**1** Point"),
-                            _ => format!("**{}** Points", user.grammarpoints),
-                            }),
+                        format!("**Rank {}**", idx_chunk * 20 + idx_user + 1),
+                        format!(
+                            "{}: {}",
+                            user.discord_user.name,
+                            match user.grammarpoints {
+                                1 => String::from("**1** Point"),
+                                _ => format!("**{}** Points", user.grammarpoints),
+                            }
+                        ),
                         true,
                     );
                     fields.push(field);
                 }
 
-                let embed = CreateEmbed::default()
+                let embed = serenity::CreateEmbed::default()
                     .title(format!("Point Leaderboard for {}", ctx.guild_id().unwrap().name(&ctx).unwrap()))
                     .description(format!("Leaderboard for the points scored on this server. A total of **{} Points** have been scored on this server. {}", points_data.total, match command_user_position {
                         Some(u) => format!("**You** have scored **{}** Points and are Ranked **{}**", u.1.grammarpoints, u.0),
                         None => String::from("**You** have not scored any points yet.")
                     }))
                     .fields(fields)
-                    .colour(Colour::BLUE)
-                    .footer(|f| 
-                        f.text(format!("Requsted by {}. Only they can change pages.", ctx.author().name))
-                    ).to_owned();
+                    .colour(serenity::Colour::BLUE)
+                    .footer(serenity::CreateEmbedFooter::new(
+                        format!("Requsted by {}. Only they can change pages.", ctx.author().name)
+                    )).to_owned();
 
                 embeds.push(embed);
             }

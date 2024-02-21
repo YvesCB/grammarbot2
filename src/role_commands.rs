@@ -1,6 +1,6 @@
 use crate::dbi;
 use crate::types::*;
-use poise::serenity_prelude::{CacheHttp, Channel, Colour, Emoji, Role};
+use poise::serenity_prelude as serenity;
 
 /// Role parent command
 ///
@@ -37,8 +37,8 @@ pub async fn role(_ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn add_role(
     ctx: Context<'_>,
-    #[description = "Role on this server"] role: Role,
-    #[description = "Emote for the role"] emote: Emoji,
+    #[description = "Role on this server"] role: serenity::Role,
+    #[description = "Emote for the role"] emote: serenity::Emoji,
     #[description = "Role description"] desc: String,
 ) -> Result<(), Error> {
     let ur = UserRole {
@@ -73,7 +73,7 @@ pub async fn add_role(
 )]
 pub async fn remove_role(
     ctx: Context<'_>,
-    #[description = "Role to remove"] role: Role,
+    #[description = "Role to remove"] role: serenity::Role,
 ) -> Result<(), Error> {
     let user_role = dbi::get_role(role.id.to_string(), ctx.guild_id()).await?;
 
@@ -164,9 +164,10 @@ pub async fn show_msg_role(ctx: Context<'_>) -> Result<(), Error> {
         .collect();
     match dbi::get_role_message(ctx.guild_id()).await? {
         Some(msg) => {
-            ctx.send(|f| {
-                f.embed(|f| {
-                    f.title("Current role message")
+            ctx.send(
+                poise::CreateReply::default().embed(
+                    serenity::CreateEmbed::default()
+                        .title("Current role message")
                         .description(&msg.messagetext)
                         .field("Roles", roles_string, false)
                         .field(
@@ -180,20 +181,23 @@ pub async fn show_msg_role(ctx: Context<'_>) -> Result<(), Error> {
                             ),
                             true,
                         )
-                        .field("Is active", msg.active, true)
-                        .colour(Colour::BLUE)
-                        .footer(|f| {
-                            f.text(format!("Requested by: {}", ctx.author().name))
-                                .icon_url(
-                                    ctx.serenity_context()
-                                        .cache
-                                        .current_user()
-                                        .avatar_url()
-                                        .unwrap(),
-                                )
-                        })
-                })
-            })
+                        .field("Is active", msg.active.to_string(), true)
+                        .colour(serenity::Colour::BLUE)
+                        .footer(
+                            serenity::CreateEmbedFooter::new(format!(
+                                "Requested by: {}",
+                                ctx.author().name
+                            ))
+                            .icon_url(
+                                ctx.serenity_context()
+                                    .cache
+                                    .current_user()
+                                    .avatar_url()
+                                    .unwrap(),
+                            ),
+                        ),
+                ),
+            )
             .await?;
         }
         None => {
@@ -219,7 +223,7 @@ pub async fn show_msg_role(ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn post_msg_role(
     ctx: Context<'_>,
-    #[description = "Channel to post in"] channel: Channel,
+    #[description = "Channel to post in"] channel: serenity::Channel,
 ) -> Result<(), Error> {
     // First we get the components we need to build the message for the current server
     let cur_message = dbi::get_role_message(ctx.guild_id()).await?;
