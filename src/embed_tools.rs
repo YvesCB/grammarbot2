@@ -14,9 +14,9 @@ async fn paginage_generic(
 
     let mut page = 0;
     let last_page = match &texts_embeds {
-        (Some(texts), None) => texts.len() == page,
-        (None, Some(embeds)) => embeds.len() == page,
-        _ => false,
+        (Some(texts), None) => texts.len() - 1,
+        (None, Some(embeds)) => embeds.len() - 1,
+        _ => 0,
     };
 
     let components = serenity::CreateActionRow::Buttons(vec![
@@ -27,7 +27,7 @@ async fn paginage_generic(
         serenity::CreateButton::new(next_button_id.clone())
             .style(serenity::ButtonStyle::Primary)
             .emoji('▶')
-            .disabled(last_page.to_owned()),
+            .disabled(page == last_page),
     ]);
     let builder = match &texts_embeds {
         (Some(texts), None) => poise::CreateReply::default()
@@ -41,67 +41,55 @@ async fn paginage_generic(
 
     let reply = ctx.send(builder).await?;
 
-    let interactions = reply
+    let mut disable_prev;
+    let mut disable_next;
+
+    while let Some(interaction) = reply
         .message()
         .await?
         .await_component_interaction(ctx)
         .author_id(ctx.author().id)
         .custom_ids(vec![prev_button_id.to_owned(), next_button_id.to_owned()])
-        .timeout(Duration::from_secs(300));
-
-    if let Some(interaction) = interactions.await {
+        .timeout(Duration::from_secs(300))
+        .next()
+        .await
+    {
         if interaction.data.custom_id == prev_button_id {
             page -= 1;
-            let disable_prev = page == 0;
-            let edit_components = serenity::CreateActionRow::Buttons(vec![
-                serenity::CreateButton::new(prev_button_id.clone())
-                    .style(serenity::ButtonStyle::Primary)
-                    .emoji('◀')
-                    .disabled(disable_prev),
-                serenity::CreateButton::new(next_button_id.clone())
-                    .style(serenity::ButtonStyle::Primary)
-                    .emoji('▶'),
-            ]);
-            let edit_builder = match &texts_embeds {
-                (Some(texts), None) => poise::CreateReply::default()
-                    .content(texts[page].clone())
-                    .components(vec![edit_components]),
-                (None, Some(embeds)) => poise::CreateReply::default()
-                    .embed(embeds[page].clone())
-                    .components(vec![edit_components]),
-                _ => poise::CreateReply::default(),
-            };
-            reply.edit(ctx, edit_builder).await?;
+            disable_prev = page == 0;
+            disable_next = false;
         } else {
             page += 1;
-            let last_page = match &texts_embeds {
-                (Some(texts), None) => texts.len() == page,
-                (None, Some(embeds)) => embeds.len() == page,
-                _ => false,
-            };
-            let disable_next = last_page;
-            let edit_components = serenity::CreateActionRow::Buttons(vec![
-                serenity::CreateButton::new(prev_button_id.to_owned())
-                    .style(serenity::ButtonStyle::Primary)
-                    .emoji('◀'),
-                serenity::CreateButton::new(next_button_id.to_owned())
-                    .style(serenity::ButtonStyle::Primary)
-                    .emoji('▶')
-                    .disabled(disable_next),
-            ]);
-            let edit_builder = match &texts_embeds {
-                (Some(texts), None) => poise::CreateReply::default()
-                    .content(texts[page].clone())
-                    .components(vec![edit_components]),
-                (None, Some(embeds)) => poise::CreateReply::default()
-                    .embed(embeds[page].clone())
-                    .components(vec![edit_components]),
-                _ => poise::CreateReply::default(),
-            };
-            reply.edit(ctx, edit_builder).await?;
+            disable_prev = false;
+            disable_next = page == last_page;
         }
-    } else {
-        return Ok(());
+        let edit_components = serenity::CreateActionRow::Buttons(vec![
+            serenity::CreateButton::new(prev_button_id.clone())
+                .style(serenity::ButtonStyle::Primary)
+                .emoji('◀')
+                .disabled(disable_prev),
+            serenity::CreateButton::new(next_button_id.clone())
+                .style(serenity::ButtonStyle::Primary)
+                .emoji('▶')
+                .disabled(disable_next),
+        ]);
+
+        let interaction_response_message = match &texts_embeds {
+            (Some(texts), None) => serenity::CreateInteractionResponseMessage::new()
+                .components(vec![edit_components])
+                .content(texts[page].clone()),
+            (None, Some(embeds)) => serenity::CreateInteractionResponseMessage::new()
+                .components(vec![edit_components])
+                .embed(embeds[page].clone()),
+            _ => serenity::CreateInteractionResponseMessage::new(),
+        };
+
+        let interaction_response =
+            serenity::CreateInteractionResponse::UpdateMessage(interaction_response_message);
+
+        interaction
+            .create_response(ctx, interaction_response)
+            .await?;
     }
 
     Ok(())
