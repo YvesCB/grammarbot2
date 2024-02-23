@@ -100,6 +100,8 @@ async fn paginage_generic(
             };
             reply.edit(ctx, edit_builder).await?;
         }
+    } else {
+        return Ok(());
     }
 
     Ok(())
