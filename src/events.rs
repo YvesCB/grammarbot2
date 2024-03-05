@@ -14,15 +14,14 @@ pub async fn my_event_handler(ctx: &Context, event: &serenity::FullEvent) -> Res
         serenity::FullEvent::ReactionRemove { removed_reaction } => {
             handle_remove_reaction(ctx, &removed_reaction).await?
         }
+        serenity::FullEvent::InteractionCreate { interaction } => {
+            todo!()
+        }
         _ => {}
     };
 
     Ok(())
 }
-
-// async fn handle_message(ctx: &Context, msg: &Message) -> Result<(), Error> {
-//     Ok(())
-// }
 
 async fn handle_add_reaction(ctx: &Context, reaction: &serenity::Reaction) -> Result<(), Error> {
     if reaction.user_id.unwrap() != ctx.cache.current_user().id {
